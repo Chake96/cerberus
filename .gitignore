@@ -1,4 +1,8 @@
 ### C++ ###
+
+#Local Build Dir
+build/**
+
 # Prerequisites
 *.d
 
