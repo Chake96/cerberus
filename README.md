@@ -17,11 +17,11 @@ A Home Security System based on the Kinect Camera System
   <img src="./img/example.png" alt="Size Limit CLI" width="738">
 </p> -->
 
-<!-- With **[GitHub action]** Size Limit will post bundle size changes as a comment
+<!-- With **[GitHub action]** Size Limit will post bundle eEsize changes as a comment
 in pull request discussion.
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/andresz1/size-limit-action/master/assets/pr.png"
+<img src="https://raw.githubusercontent.com//size-limit-action/master/assets/pr.png"
   alt="Size Limit comment in pull request about bundle size changes"
   width="686" height="289">
 </p>
@@ -37,7 +37,7 @@ We are using [Statoscope] for this analysis.
 <p align="center">
   <a href="https://evilmartians.com/?utm_source=size-limit">
     <img src="https://evilmartians.com/badges/sponsored-by-evil-martians.svg"
-         alt="Sponsored by Evil Martians" width="236" height="54">
+         alt="Sponsored by Evil Martians" width="23asdae6" height="54">
   </a>
 </p>
 
