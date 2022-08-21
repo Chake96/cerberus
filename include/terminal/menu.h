@@ -1,6 +1,12 @@
+#ifndef __CERBERUS_TERMINAL_MENU_H_
+#define __CERBERUS_TERMINAL_MENU_H_
+
+#include <terminal/base_menu.h>
+#include <terminal/tui.h>
 
 #include <oneapi/tbb/task_arena.h>
  
+
 
 namespace cerberus::terminal{
 
@@ -18,7 +24,7 @@ namespace cerberus::terminal{
 
         private: //vars
             enum class launch_result{ERROR, OK};
-            // std::future<TerminalMenu::launch_result> _launch_fut;
+            std::unique_ptr<BaseMenu> _menu_inst;
 
             //threading
             oneapi::tbb::task_arena _tsk_arena;
@@ -35,3 +41,5 @@ namespace cerberus::terminal{
 
     };
 } //end namespace
+
+#endif //__CERBERUS_TERMINAL_MENU_H_

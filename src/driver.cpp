@@ -44,8 +44,6 @@ int main(int argc, const char* argv[]) {
     po::store(po::parse_command_line(argc, argv, descript), inputs);
     po::notify(inputs);
 
-    bool use_tui{false};
-
     if(inputs.count("help")){
         std::cout << descript << '\n';
         return 1;

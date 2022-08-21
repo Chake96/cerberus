@@ -14,7 +14,6 @@
 namespace cerberus::terminal{
 
     namespace{
-        using namespace ftxui;
         using types = TerminalMenu::types;
         using namespace oneapi;
     }
@@ -48,29 +47,10 @@ namespace cerberus::terminal{
     }
 
     TerminalMenu::launch_result TerminalMenu::_launch_tui(){
-        using namespace ftxui;
-        
         launch_result res{launch_result::OK};
         try{
-            auto screen = ScreenInteractive::TerminalOutput();
-            
-            static const std::vector<std::string> entries = {
-                "keyboard control",
-                "entry 2",
-                "entry 3",
-            };
-            int selected = 0;
-            
-            MenuOption option;
-            option.on_enter = screen.ExitLoopClosure();
-            auto menu = Menu(&entries, &selected, &option);
-            // screen.Loop(menu);
-            // auto screen_loop_fn = std::mem_fn(&ScreenInteractive::Loop);
-            // auto binded_fn = std::bind(screen_loop_fn, &screen, menu);
-            // _tsk_arena.enqueue(binded_fn);
-            screen.Loop(menu);
-            
-            std::cout << "Selected element = " << selected << std::endl;
+            _menu_inst = std::make_unique<TUITerminal>();
+            _menu_inst->start();
         }catch(...){
             res = launch_result::ERROR;
         }
