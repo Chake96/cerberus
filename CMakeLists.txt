@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.15)
 project(cerberus CXX)
 
+#Linting and Tooling Setup
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+
 #conan stuff
 include(${CMAKE_BINARY_DIR}/conan_paths.cmake) #adds paths for dependencies
 

@@ -36,7 +36,7 @@ class TUITerminal : public BaseMenu {
         }
 
     private://vars
-        ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::TerminalOutput();;
+        ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::FitComponent();;
         int_fast8_t _top_menu_select{0};
 
         //for refresh thread
@@ -55,20 +55,17 @@ class TUITerminal : public BaseMenu {
             using namespace ftxui;
             std::vector<Event> inputs{};
 
-            static auto stringify = [](Event event)->std::string{
+            static auto stringify = [](const Event& event)->std::string{
                 if(event.is_character()){
                     return event.character();
                 }
                 return "";
             };
 
-            auto screen = ScreenInteractive::TerminalOutput();
+            auto screen = ScreenInteractive::FitComponent();
 
 
-            auto renderer = Renderer([&,this]{
-                auto c = Canvas(100,100);
-                c.DrawText(0,0, "Press Q to go Back");
-                Elements children;
+            auto renderer = Renderer([&]{
                 for (size_t i = std::max(0, (int)inputs.size() - 20); i < inputs.size(); ++i){
                     auto str_input = stringify(inputs[i]);
                     if(!str_input.empty()){
@@ -76,8 +73,7 @@ class TUITerminal : public BaseMenu {
                             switch(str_input.front()){
                                 case 'Q':[[fallthrough]];
                                 case 'q':{
-                                    c.DrawText(0,10,"quit!");
-                                    screen.Clear();
+                                    screen.ResetPosition(true);
                                     screen.ExitLoopClosure()();
                                     break;
                                 }
@@ -91,11 +87,10 @@ class TUITerminal : public BaseMenu {
                     vbox({
                         text("Press Q to go back"),
                         ftxui::separator(),
-                        canvas(std::move(c))
-                });
+                    });
             });
 
-            renderer |= CatchEvent([&inputs, this](Event event){
+            renderer |= CatchEvent([&inputs](Event event){
                 inputs.push_back(event);
                 return true;
             });
