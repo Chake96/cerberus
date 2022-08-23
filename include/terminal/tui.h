@@ -3,6 +3,7 @@
 
 
 
+#include <ftxui/dom/deprecated.hpp>
 #include <terminal/base_menu.h>
 #include <kinect.h>
 
@@ -62,7 +63,7 @@ class TUITerminal : public BaseMenu {
 
 
             _renderer = Renderer([&, this]{
-                auto tui_para = paragraph("");
+                auto state_doc = hflow();
 
                 for (size_t i = std::max(0, (int)inputs.size() - 20); i < inputs.size(); ++i){
                     auto str_input = stringify(inputs[i]);
@@ -78,18 +79,26 @@ class TUITerminal : public BaseMenu {
                                 case 'W':[[fallthrough]];
                                 case 'w':{
                                     if(auto state = _kin.tilt_state()){
-                                        auto state_str = absl::StrFormat(
-                                            "Current Tilt Motor State:\n\t Accelerometer\n\t X: %f, Y: %f, Z: %f\n\tAngle (Degrees): %i\n\tStatus: %i\n", 
+                                        auto accel_str = absl::StrFormat(
+                                            "Accelerometer\n\t X: %f, Y: %f, Z: %f",
                                             state->accelerometer_x,
                                             state->accelerometer_y,
-                                            state->accelerometer_z,
+                                            state->accelerometer_z
+                                        );
+                                        auto tilt_str = absl::StrFormat(
+                                            "Angle (Degrees): %i Status: %i\n",
                                             state->tilt_angle,
                                             state->tilt_status
                                         );
-                                        tui_para = paragraph(state_str);
+                                        state_doc = hflow(
+                                            paragraph("Tilt Motor State"),
+                                            paragraph(accel_str),
+                                            paragraph(tilt_str)
+                                        );
                                     }else{
-                                        static int8_t count{0};
-                                        tui_para = paragraph(absl::StrFormat("%i #: no state to report for Kinect %i", count++, _kin.kID));
+                                        //TODO: log lack of state
+                                        static uint16_t count{0};
+                                        state_doc = hflow(paragraph(absl::StrFormat("%i #: no state to report for Kinect %i", count++, _kin.kID)));
                                     }
                                     break;
                                 }
@@ -116,13 +125,15 @@ class TUITerminal : public BaseMenu {
                     vbox({
                         text("Press Q to go back"),
                         ftxui::separator(),
-                        hflow(tui_para),
+                        state_doc,
                     });
             });
 
             _renderer |= CatchEvent([&inputs](Event event){
-                inputs.push_back(event);
-                return true;
+                if(event.is_character()){
+                    inputs.push_back(event);
+                }
+                return false;
             });
             screen.Loop(_renderer);
         }

@@ -59,7 +59,7 @@ namespace cerberus::kinect{
             std::optional<freenect_raw_tilt_state> tilt_state() const{
                 std::unique_lock lck(_tilt_motor.locked_state.mtx);
                 if(_tilt_motor.locked_state.state){
-                    return std::make_optional(*_tilt_motor.locked_state.state.get());
+                    return std::make_optional(*_tilt_motor.locked_state.state);
                 }
                 return std::nullopt;
             }
@@ -91,8 +91,9 @@ namespace cerberus::kinect{
 
                 int update_state(){//update the raw values from the kinect
                     std::unique_lock _lck(locked_state.mtx);
-                    auto* state_ptr = locked_state.state.get();
-                    int result = freenect_sync_get_tilt_state(&state_ptr, kID);
+                    auto* read_ptr = locked_state.state.get();
+                    int result = freenect_sync_get_tilt_state(&read_ptr, kID);
+                    locked_state.state = std::make_unique<freenect_raw_tilt_state>(*read_ptr);
                     //update the accelerometer data
                     if(result >=0 && locked_state.state){
                         freenect_get_mks_accel(locked_state.state.get(), &x_ax, &y_ax, &z_ax);
