@@ -1,7 +1,7 @@
 //std + c
 #include <iostream>
 #include <vector>
-#include <signal.h> //TODO: remove with signal handling
+#include <csignal> 
 
 //boost
 #include <boost/program_options.hpp>
@@ -20,21 +20,16 @@ namespace po = boost::program_options;
 volatile bool running = true;
 void signalHandler(int signal)
 {
-	if (signal == SIGINT
-	 || signal == SIGTERM
-	 || signal == SIGQUIT)
-	{
-		running = false;
-	}
+    running = false;
 }
 
 namespace ctm = cerberus::terminal;
 int main(int argc, const char* argv[]) {
 
     //TODO: remove linux based signal handling
-    signal(SIGINT, signalHandler);
-	signal(SIGTERM, signalHandler);
-	signal(SIGQUIT, signalHandler);
+    std::signal(SIGINT, signalHandler);
+	std::signal(SIGTERM, signalHandler);
+	std::signal(SIGQUIT, signalHandler);
 
     po::options_description descript("Allowed Options");
     descript.add_options()("help", "show the help message")

@@ -2,6 +2,8 @@
 
 #Local Build Dir
 build/**
+.cache/**
+.vscode/**
 
 # Prerequisites
 *.d
@@ -114,3 +116,5 @@ deactivate_run.ps1
 deactivate_run.sh
 environment_run.ps1.env
 environment_run.sh.env
+.vscode/launch.json
+.vscode/settings.json

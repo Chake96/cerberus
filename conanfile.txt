@@ -4,7 +4,9 @@
     boost/1.79.0
     ftxui/3.0.0
     onetbb/2021.3.0
-
+    si/2.5.0
 [generators]
     cmake_paths
     cmake_find_package
+    CMakeDeps
+    CMakeToolchain
