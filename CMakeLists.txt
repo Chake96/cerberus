@@ -35,8 +35,9 @@ find_package(si REQUIRED)
 ##FreeNect
 set(BUILD_REDIST_PACKAGE OFF)
 set(OpenGL_GL_PREFERENCE GLVND)
+set(WITH_LOGGING OFF)
+set(WITH_DEBUG_LOG OFF)
 add_subdirectory(libfreenect)
-
 
 ##FTXUI
 find_package(ftxui)

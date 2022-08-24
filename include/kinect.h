@@ -30,13 +30,14 @@ namespace cerberus::kinect{
             enum eModels{V1, V2};
             const int8_t kID;
             const eModels kModel;
+            static struct TiltProperties{
+                static constexpr int slow_deg{5}, fast_deg{15};
+                static constexpr int min{-10}, max = {10};
+            }TiltProperties;
 
         public://funcs
             ~Kinect(){
                 _quit_signal.set_value();
-                // while(_update_thread.joinable()){
-                //     std::this_thread::sleep_for(std::chrono::seconds(1));
-                // }
             }
 
             explicit Kinect(int8_t kid, eModels model = eModels::V1): kID(kid), kModel(model){
@@ -134,12 +135,13 @@ namespace cerberus::kinect{
         private: //funcs
 
             void _update_thread_routine(){
-                auto quit = _quit_signal.get_future();
                 using namespace std::chrono_literals;
                 using namespace std::chrono;
-                auto current_time = std::chrono::high_resolution_clock::now();
-                static constexpr auto ms_between_loops = 0.1s;
+
+                auto quit = _quit_signal.get_future();
+                static constexpr auto ms_between_loops = 500ms;
                 _tilt_motor.kID = kID;
+                auto current_time = std::chrono::high_resolution_clock::now();
                 while(quit.wait_until(current_time + ms_between_loops) != std::future_status::ready){
                     current_time = high_resolution_clock::now();
                     int get_result{0};
@@ -149,7 +151,7 @@ namespace cerberus::kinect{
                         //TODO: log failed to update state
                         std::cerr << absl::StrFormat("Failed to update Tilt Motor State for Kinect %i\n", kID);
                     }
-                    
+                    std::cerr << "Time Per Loop: " << duration_cast<milliseconds>(high_resolution_clock::now() - current_time).count() <<'\n';
                 }
             }
     };
