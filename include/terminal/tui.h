@@ -3,11 +3,13 @@
 
 
 
+#include "SI/angle.h"
 #include "boost/lockfree/policies.hpp"
 #include <ftxui/dom/deprecated.hpp>
 #include <ftxui/screen/color.hpp>
 #include <terminal/base_menu.h>
 #include <kinect.h>
+#include <kinect_manager.h>
 
 #include <string>
 #include <vector>
@@ -44,7 +46,7 @@ class TUITerminal : public BaseMenu {
         }
 
     private://vars
-        kinect::Kinect _kin = kinect::Kinect(0, kinect::Kinect::eModels::V1);
+        kinect::Kinect _kin = kinect::Kinect(0);
 
         //tui
         ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::TerminalOutput();
@@ -68,8 +70,23 @@ class TUITerminal : public BaseMenu {
 
 
             _renderer = Renderer([&, this]{
+                using namespace SI;
+                using namespace SI::literals;
+
+
                 static auto state_doc = vflow({});
                 Event ele_itr;
+                double acc_x{}, acc_y{}, acc_z{};
+                auto new_state = _kin.get_state();//TODO fix not checking optional
+                // new_state.getAccelerometers(&acc_x, &acc_y, &acc_z);
+                auto accel_str = absl::StrFormat(
+                    "Accelerometer\n\t X: %f, Y: %f, Z: %f\n",
+                    acc_x, acc_y, acc_z
+                );
+                auto tilt_str = absl::StrFormat(
+                    "Angle (Degrees): %f\n",
+                    new_state->cmded_angle.value()
+                );
                 if(inputs.pop(ele_itr)){
                     auto str_input = stringify(ele_itr);
                     if(!str_input.empty()){
@@ -84,67 +101,33 @@ class TUITerminal : public BaseMenu {
                                 }
                                 case 'P':[[fallthrough]];
                                 case 'p':{
-                                    if(auto state = _kin.tilt_state()){
-                                        auto accel_str = absl::StrFormat(
-                                            "Accelerometer\n\t X: %f, Y: %f, Z: %f\n",
-                                            state->accelerometer_x,
-                                            state->accelerometer_y,
-                                            state->accelerometer_z
-                                        );
-                                        auto tilt_str = absl::StrFormat(
-                                            "Angle (Degrees): %i Status: %i\n",
-                                            state->tilt_angle,
-                                            state->tilt_status
-                                        );
-                                        state_doc = vflow({
-                                            text("Tilt Motor State") | bgcolor(Color::Black) | color(Color::White) | bold,
-                                            text(accel_str) | bgcolor(Color::White) | color(Color::Blue) ,
-                                            text(tilt_str)| bgcolor(Color::White) | color(Color::Blue)
-                                        });
-                                    }else{
-                                        //TODO: log lack of state
-                                        static uint16_t count{0};
-                                        state_doc = hflow(paragraph(absl::StrFormat("%i #: no state to report for Kinect %i", count++, _kin.kID)));
-                                    }
+                                    
                                     break;
                                 }
                                 case 'S':
                                     fast_rate = true;
                                     [[fallthrough]];
                                 case 's':{
-                                    if(auto ts = _kin.tilt_state()){
-                                        if(ts->tilt_angle > kinect::Kinect::TiltProperties.min){
-                                            int current_tilt = ceil(ts->tilt_angle);
-                                            current_tilt -= (fast_rate) ? kinect::Kinect::TiltProperties.fast_deg : kinect::Kinect::TiltProperties.slow_deg;
-                                            _kin.set_tilt(current_tilt);
-                                        }
-                                    }else{
-                                        _kin.set_tilt(kinect::Kinect::TiltProperties.slow_deg);
-                                    }
+                                    double dif = (fast_rate) ? kinect::units::TiltProperties::fast_step : kinect::units::TiltProperties::slow_step;
+                                    auto new_ang = degree_t<double>{new_state->cmded_angle.value() - dif};
+                                    _kin.set_tilt(new_ang);
                                     break;
                                 }
                                 case 'W':
                                     fast_rate = true;
                                     [[fallthrough]];
                                 case 'w':{
-                                    if(auto ts = _kin.tilt_state()){
-                                        if(ts->tilt_angle < kinect::Kinect::TiltProperties.max){
-                                            int current_tilt = ceil(ts->tilt_angle);
-                                            current_tilt += (fast_rate) ? kinect::Kinect::TiltProperties.fast_deg : kinect::Kinect::TiltProperties.slow_deg;
-                                            _kin.set_tilt(current_tilt);
-                                        }
-                                    }else{
-                                        _kin.set_tilt(kinect::Kinect::TiltProperties.slow_deg);
-                                    }
+                                    double dif = (fast_rate) ? kinect::units::TiltProperties::fast_step : kinect::units::TiltProperties::slow_step;
+                                    auto new_ang = degree_t<double>{new_state->cmded_angle.value() + dif};
+                                    _kin.set_tilt(new_ang);
                                 }break;
                                 case 'C':
                                 case 'c':{
-                                    _kin.set_color((_kin.color() == kinect::units::eLEDColors::GREEN) ? (kinect::units::eLEDColors::RED) : kinect::units::eLEDColors::GREEN);
                                     break;
                                 }
                                 case 'R':[[fallthrough]];
                                 case 'r':{
-                                    _kin.set_tilt(0);
+                                    _kin.set_tilt(degree_t<double>{0});
                                 }
                                 default:
                                     break;
@@ -152,12 +135,18 @@ class TUITerminal : public BaseMenu {
                         }
                     }
                 }
+                
+                state_doc = vflow({
+                    text("Tilt Motor State") | bgcolor(Color::Black) | color(Color::White) | bold,
+                    text(accel_str) | bgcolor(Color::White) | color(Color::Blue) ,
+                    text(tilt_str)| bgcolor(Color::White) | color(Color::Blue)
+                });
 
                 return 
                     vbox({
                         text("Press Q to go back"),
                         ftxui::separator(),
-                        window(text(""), state_doc),
+                        window(text("Kinect State"), state_doc),
                     });
             });
 

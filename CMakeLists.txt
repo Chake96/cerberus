@@ -5,15 +5,19 @@ project(cerberus CXX)
 
 
 #conan stuff
-include(${CMAKE_BINARY_DIR}/conan_paths.cmake) #adds paths for dependencies
+include(${CMAKE_CURRENT_BINARY_DIR}/conan_paths.cmake) #adds paths for dependencies
+include(${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake)
+conan_basic_setup()
 
 #3rd Party Setup
+
+find_package(libfreenect REQUIRED)
 
 #Intel TBB Threading
 find_package(TBB COMPONENTS tbb REQUIRED)
 
 ##OpenCV
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED core videoio imgproc imgcodecs highgui)
 
 
 ##Google
@@ -33,11 +37,8 @@ find_package(si REQUIRED)
 
 
 ##FreeNect
-set(BUILD_REDIST_PACKAGE OFF)
-set(OpenGL_GL_PREFERENCE GLVND)
-set(WITH_LOGGING OFF)
-set(WITH_DEBUG_LOG OFF)
-add_subdirectory(libfreenect)
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/conan_toolchain.cmake" CACHE STRING "")
+message(STATUS "FUCK: ${CMAKE_TOOLCHAIN_FILE}")
 
 ##FTXUI
 find_package(ftxui)
@@ -57,11 +58,20 @@ endif()
 file(GLOB terminal_srcs "src/terminal/*.cpp" "src/terminal/*.c")
 
 add_executable(${PROJECT_NAME}  src/cerberus.cpp src/driver.cpp src/kinect.cpp ${terminal_srcs})
-target_include_directories(${PROJECT_NAME}  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include )
-target_include_directories(${PROJECT_NAME}  PRIVATE ${Boost_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME}  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME}  PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 
-target_link_libraries(${PROJECT_NAME} PUBLIC absl::absl ${Boost_LIBRARIES} SI::SI ${OpenCV_LIBS} freenect_sync ftxui::screen ftxui::dom ftxui::component TBB::tbb)  
+target_link_libraries(${PROJECT_NAME} 
+                        PUBLIC 
+                            absl::absl
+                            Boost::headers Boost::program_options
+                             ${OpenCV_LIBS} 
+                            freenect
+                            ftxui::screen ftxui::dom ftxui::component
+                            TBB::tbb
+                            SI::SI
+)  
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20 PRIVATE ${TBB_CXX_STD_FLAG})
 
@@ -80,9 +90,14 @@ if(UNIX)
     endif()
 endif()
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libfreenect/cmake_modules/")
+
 
 
 #Testing
+# find_package(libusb-1.0 REQUIRED)
 add_executable(basic_test testing/test.cpp)
 target_link_libraries(basic_test GTest::gtest GTest::gtest_main)
-gtest_discover_tests(basic_test)
+add_executable(opencv_ex testing/opencv.cpp)
+target_link_libraries(opencv_ex PUBLIC freenect_sync ${OpenCV_LIBS})
+target_include_directories(opencv_ex PUBLIC ${LIBUSB_1_INCLUDE_DIRS} ${OpenCV_LIBS} )

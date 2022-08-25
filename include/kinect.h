@@ -1,9 +1,16 @@
 #ifndef __CERBERUS_KINECT_H_
 #define __CERBERUS_KINECT_H_
 
-#include "libfreenect_sync.h"
+
+// #include <libfreenect.h>
+#include <libfreenect/libfreenect.hpp>
+#include <absl/strings/str_format.h>
+
+#include <SI/mass.h>
+#include <SI/area.h>
+#include <SI/angle.h>
+
 #include <functional>
-#include <libfreenect.h>
 #include <cstdint>
 #include <iostream>
 #include <memory>
@@ -11,149 +18,125 @@
 #include <thread>
 #include <future>
 #include <chrono>
+#include <mutex>
 
 
-#include <absl/strings/str_format.h>
+
 
 
 namespace cerberus::kinect{
 
 
-
+    const SI::kilo_gram_t<long double> kg{0};
     namespace units{
         enum class eLEDColors{OFF = 0, GREEN, RED, YELLOW, BLINK_GREEN, BLINK_R_Y};
+        struct TiltProperties{
+            static constexpr double fast_step = 3, slow_step = 1;
+            static constexpr double epsilon{0.1};
+            enum class status{STOPPED, AT_LIMIT, MOVING};
+        };
     }
 
-    //TODO: define a runtime & install config 
-    class Kinect{
-        public://vars
-            enum eModels{V1, V2};
-            const int8_t kID;
-            const eModels kModel;
-            static struct TiltProperties{
-                static constexpr int slow_deg{5}, fast_deg{15};
-                static constexpr int min{-10}, max = {10};
-            }TiltProperties;
+    class Kinect final{
+        public: //properties and structs
+            struct State{
+                SI::degree_t<double> cmded_angle{};
+                units::TiltProperties::status tilt_status{units::TiltProperties::status::STOPPED};
+            };
+        public: //members
+            const int kID;
 
-        public://funcs
             ~Kinect(){
-                _quit_signal.set_value();
+                _stop_flag.set_value();
             }
 
-            explicit Kinect(int8_t kid, eModels model = eModels::V1): kID(kid), kModel(model){
-                _update_thread = std::jthread(&Kinect::_update_thread_routine, this);
+            explicit Kinect(int id = 0): kID(id){
+                //init context
+                if(freenect_init(&_fn_cntx, NULL) < 0) throw std::runtime_error("Cannot initialize freenect library");
+                // We claim both the motor and camera devices, since this class exposes both.
+                // It does not support audio, so we do not claim it.
+                freenect_select_subdevices(_fn_cntx, static_cast<freenect_device_flags>(FREENECT_DEVICE_MOTOR | FREENECT_DEVICE_CAMERA)); 
+                //init underlying device
+                _dev = std::make_unique<Freenect::FreenectDevice>(_fn_cntx, kID);
+                if(!_dev){
+                    throw std::runtime_error(absl::StrFormat("Couldn't initalize underlying subdevice for Kinect{%i}", kID));
+                }
+                _dev_update_thrd = std::jthread(&Kinect::update_task, this);
             }
 
-            void set_tilt(int deg){
-                _tilt_motor.set_deg(deg, kID);
-            }
-
-            void set_color(units::eLEDColors color){
-                _led_dev.send_color(color, kID);
-            }
-
-            units::eLEDColors color(){
-                return _led_dev.color;
-            }
-            
-
-            std::optional<freenect_raw_tilt_state> tilt_state() const{
-                std::unique_lock lck(_tilt_motor.locked_state.mtx);
-                if(_tilt_motor.locked_state.state){
-                    return std::make_optional(*_tilt_motor.locked_state.state);
+            std::optional<State> get_state(){
+                using namespace std::chrono_literals;
+                std::unique_lock lck(_state_mtx, std::defer_lock);
+                if(lck.try_lock_for(5ms)){
+                    std::make_optional<State>(_state);
                 }
                 return std::nullopt;
             }
+
+            void set_tilt(const SI::degree_t<double>& deg){
+                _state.cmded_angle = deg;
+                _dev->setTiltDegrees(deg.value());
+            }
+
+            void set_color(units::eLEDColors color){
+                switch(color){
+                    case units::eLEDColors::BLINK_GREEN:
+                        _dev->setLed(freenect_led_options::LED_BLINK_GREEN);
+                        break;
+                    case units::eLEDColors::BLINK_R_Y:
+                        _dev->setLed(freenect_led_options::LED_BLINK_RED_YELLOW);
+                        break;
+                    case units::eLEDColors::RED:
+                        _dev->setLed(freenect_led_options::LED_RED);
+                        break;
+                    case units::eLEDColors::GREEN:
+                        _dev->setLed(freenect_led_options::LED_GREEN);
+                        break;
+                    case units::eLEDColors::YELLOW:
+                        _dev->setLed(freenect_led_options::LED_YELLOW);
+                        break;
+                    default:
+                        _dev->setLed(freenect_led_options::LED_OFF);
+                        break;
+                }
+            }
+
 
             bool operator<(const Kinect& rhs)const{
                 return kID < rhs.kID; 
             }
 
         private: //vars
-            std::promise<void> _quit_signal;
-            std::jthread _update_thread;
-            
-            struct TiltMotor{
 
-                struct LockedState{
-                    mutable std::mutex mtx;
-                    std::unique_ptr<freenect_raw_tilt_state> state = std::make_unique<freenect_raw_tilt_state>();
-                }locked_state;
+            //state info
+            State _state;
+            std::timed_mutex _state_mtx;
 
-                double x_ax{0.}, y_ax{0.}, z_ax{0.};
-                int16_t usr_ang_deg{0};
-                int8_t kID{0};
+            std::promise<void> _stop_flag;
+            std::jthread _dev_update_thrd;
+            freenect_context* _fn_cntx;
+            std::unique_ptr<Freenect::FreenectDevice> _dev{nullptr};
 
-                void set_deg(int degrees, int8_t id){
-                    if(freenect_sync_set_tilt_degs(degrees, id)){
-                        //TODO: log error
-                    }
-                }
+        private://funcs
 
-                int update_state(){//update the raw values from the kinect
-                    std::unique_lock _lck(locked_state.mtx);
-                    auto* read_ptr = locked_state.state.get();
-                    int result = freenect_sync_get_tilt_state(&read_ptr, kID);
-                    locked_state.state = std::make_unique<freenect_raw_tilt_state>(*read_ptr);
-                    //update the accelerometer data
-                    if(result >=0 && locked_state.state){
-                        freenect_get_mks_accel(locked_state.state.get(), &x_ax, &y_ax, &z_ax);
-                    }
-                    return result;
-                }
-
-            } _tilt_motor;
-
-            struct LED_DEV{
-                units::eLEDColors color{units::eLEDColors::OFF};
-                int8_t kID{0};
-                void send_color(units::eLEDColors new_color, int ID){
-                    color = new_color;
-                    switch(new_color){
-                        case units::eLEDColors::BLINK_GREEN:
-                            freenect_sync_set_led(freenect_led_options::LED_BLINK_GREEN, ID);
-                            break;
-                        case units::eLEDColors::BLINK_R_Y:
-                            freenect_sync_set_led(freenect_led_options::LED_BLINK_RED_YELLOW, ID);
-                            break;
-                        case units::eLEDColors::RED:
-                            freenect_sync_set_led(freenect_led_options::LED_RED, ID);
-                            break;
-                        case units::eLEDColors::GREEN:
-                            freenect_sync_set_led(freenect_led_options::LED_GREEN, ID);
-                            break;
-                        case units::eLEDColors::YELLOW:
-                            freenect_sync_set_led(freenect_led_options::LED_YELLOW, ID);
-                            break;
-                        default:
-                            freenect_sync_set_led(freenect_led_options::LED_OFF, ID);
-                            break;
-                    }
-                }
-            }_led_dev;
-
-        private: //funcs
-
-            void _update_thread_routine(){
-                using namespace std::chrono_literals;
+            void update_task(){
                 using namespace std::chrono;
-
-                auto quit = _quit_signal.get_future();
-                static constexpr auto ms_between_loops = 500ms;
-                _tilt_motor.kID = kID;
-                auto current_time = std::chrono::high_resolution_clock::now();
-                while(quit.wait_until(current_time + ms_between_loops) != std::future_status::ready){
-                    current_time = high_resolution_clock::now();
-                    int get_result{0};
-                    
-                    _tilt_motor.update_state();
-                    if(get_result < 0){
-                        //TODO: log failed to update state
-                        std::cerr << absl::StrFormat("Failed to update Tilt Motor State for Kinect %i\n", kID);
+                using namespace std::chrono_literals;
+                thread_local auto stop = _stop_flag.get_future();
+                thread_local auto now = high_resolution_clock::now();
+                static constexpr auto delay_time = 100ms;
+                thread_local static timeval timeout = {0, 50 };
+                while(stop.wait_until(now + delay_time) == std::future_status::timeout){
+                    now = high_resolution_clock::now();
+                    _dev->updateState();
+                    int update_status = freenect_process_events_timeout(_fn_cntx, &timeout);
+                    if(update_status < 0){
+                        //TODO: log error
+                        std::cerr << "Couldn't update status\n";
                     }
-                    std::cerr << "Time Per Loop: " << duration_cast<milliseconds>(high_resolution_clock::now() - current_time).count() <<'\n';
                 }
             }
+
     };
 
 

@@ -1,7 +1,8 @@
 
+#include <set>
+#include <kinect.h>
 #include <boost/signals2.hpp>
 
-#include <kinect.h>
 
 namespace cerberus::kinect{
 
@@ -20,7 +21,7 @@ namespace cerberus::kinect{
         private: //vars
             std::set<Kinect> _kinects{};
 
-            std::vector<std::function<void (int8_t)>>
+            // std::vector<std::function<void (int8_t)>>
 
     };
 
