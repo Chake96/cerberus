@@ -22,6 +22,8 @@ namespace cerberus::terminal{
         try{
             std::call_once(_launch_once, &TerminalMenu::_launch, this, launch_type);
         }catch(...){
+            std::cerr << "TerminalMenu::launch\n";
+            throw;
             //TODO: log multiple calls to launch terminal
         }        
     }

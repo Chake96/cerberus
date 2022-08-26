@@ -105,7 +105,7 @@ class MyFreenectDevice : public Freenect::FreenectDevice {
 };
 
 
-int main(int argc, char **argv) {
+int main() {
 	bool die(false);
 	string filename("snapshot");
 	string suffix(".png");
@@ -126,19 +126,19 @@ int main(int argc, char **argv) {
 	MyFreenectDevice& device = freenect.createDevice<MyFreenectDevice>(0);
 	using namespace cv;
 	namedWindow("rgb",cv::WindowFlags::WINDOW_AUTOSIZE);
-	namedWindow("depth",cv::WindowFlags::WINDOW_AUTOSIZE);
+	// namedWindow("depth",cv::WindowFlags::WINDOW_AUTOSIZE);
 	device.startVideo();
 	device.startDepth();
 	while (!die) {
 		device.getVideo(rgbMat);
-		device.getDepth(depthMat);
+		// device.getDepth(depthMat);
 		cv::imshow("rgb", rgbMat);
-		depthMat.convertTo(depthf, CV_8UC1, 255.0/2048.0);
-		cv::imshow("depth",depthf);
+		// depthMat.convertTo(depthf, CV_8UC1, 255.0/2048.0);
+		// cv::imshow("depth",depthf);
 		char k = cv::waitKey(5);
 		if( k == 27 ){
 			cv::destroyWindow("rgb");
-			cv::destroyWindow("depth");
+			// cv::destroyWindow("depth");
 			break;
 		}
 		if( k == 8 ) {

@@ -8,18 +8,18 @@ namespace cerberus::kinect{
 
 
     class KinectManager{
-        public:
-            using CallBackT = std::function<void (size_t)>;
+        // public:
+        //     using CallBackT = std::function<void (size_t)>;
 
-            KinectManager() = default;
+        //     KinectManager() = default;
 
-            size_t count() const{
-                return _kinects.size();
-            }
+        //     size_t count() const{
+        //         return _kinects.size();
+        //     }
             
 
-        private: //vars
-            std::set<Kinect> _kinects{};
+        // private: //vars
+        //     std::set<Kinect> _kinects{};
 
             // std::vector<std::function<void (int8_t)>>
 

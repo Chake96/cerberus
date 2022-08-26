@@ -18,7 +18,7 @@
 namespace po = boost::program_options;
 
 volatile bool running = true;
-void signalHandler(int signal)
+void signalHandler([[maybe_unused]] int signal)
 {
     running = false;
 }

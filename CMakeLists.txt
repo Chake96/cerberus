@@ -49,7 +49,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(Boost_DEBUG on)
 
     #Linting and Tooling Setup
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL ON)
 endif()
 
 #Cerberus
@@ -99,5 +99,5 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libfreenect/cmak
 add_executable(basic_test testing/test.cpp)
 target_link_libraries(basic_test GTest::gtest GTest::gtest_main)
 add_executable(opencv_ex testing/opencv.cpp)
-target_link_libraries(opencv_ex PUBLIC freenect_sync ${OpenCV_LIBS})
+target_link_libraries(opencv_ex PUBLIC freenect ${OpenCV_LIBS})
 target_include_directories(opencv_ex PUBLIC ${LIBUSB_1_INCLUDE_DIRS} ${OpenCV_LIBS} )
