@@ -203,20 +203,20 @@ class TUITerminal : public BaseMenu {
             Component renderer = Renderer([&] {
                 auto c = Canvas(640, 480);
                 cv::Mat rgb;
-                static int count{0};
+                [[maybe_unused]] static int count{0} ;
                 if(_rgb_stream.pop(rgb)){
-                    c.DrawText(0,0, absl::StrFormat("theres a STREAM: %i", count++), [](Pixel& p){
-                        p.foreground_color = Color::Yellow;
-                    });
-                    // unsigned char* data = static_cast<unsigned char *>(rgb.data);
-                    // for(auto i = 0; i < rgb.rows; i++){
-                    //     for(auto j = 0; j < rgb.cols; j++){
-                    //         uchar b = data[i * rgb.step + rgb.channels() * j + 0];
-                    //         uchar g = data[i * rgb.step + rgb.channels() * j + 1];
-                    //         uchar r = data[i * rgb.step + rgb.channels() * j + 2];
-                    //         c.DrawPoint(i,j, true, Color::RGB(r,g,b));
-                    //     }
-                    // }
+                    // c.DrawText(0,0, absl::StrFormat("theres a STREAM: %i", count++), [](Pixel& p){
+                    //     p.foreground_color = Color::Yellow;
+                    // });
+                    unsigned char* data = static_cast<unsigned char *>(rgb.data);
+                    for(auto i = 0; i < rgb.rows; i++){
+                        for(auto j = 0; j < rgb.cols; j++){
+                            uchar b = data[i * rgb.step + rgb.channels() * j + 0];
+                            uchar g = data[i * rgb.step + rgb.channels() * j + 1];
+                            uchar r = data[i * rgb.step + rgb.channels() * j + 2];
+                            c.DrawPoint(i,j, true, Color::RGB(r,g,b));
+                        }
+                    }
                 }else{
                     c.DrawText(0, 0, absl::StrFormat("No Stream (%i)", std::chrono::high_resolution_clock::now().time_since_epoch().count()), 
                                     [](Pixel& p) {

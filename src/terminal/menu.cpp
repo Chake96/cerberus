@@ -1,3 +1,5 @@
+#include <absl/strings/str_format.h>
+#include <exception>
 #include <terminal/menu.h>
 
 #include <stddef.h>  
@@ -21,9 +23,8 @@ namespace cerberus::terminal{
     void TerminalMenu::launch(types launch_type) noexcept{
         try{
             std::call_once(_launch_once, &TerminalMenu::_launch, this, launch_type);
-        }catch(...){
-            std::cerr << "TerminalMenu::launch\n";
-            throw;
+        }catch(const std::exception& e){
+            std::cerr << absl::StrFormat("TerminalMenu::launch Error: %s\n", e.what());
             //TODO: log multiple calls to launch terminal
         }        
     }
