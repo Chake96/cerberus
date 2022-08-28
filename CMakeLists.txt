@@ -18,6 +18,7 @@ find_package(TBB COMPONENTS tbb REQUIRED)
 
 ##OpenCV
 find_package(OpenCV REQUIRED core videoio imgproc imgcodecs highgui)
+set(WITH_TBB ON)
 
 
 ##Google
@@ -49,16 +50,17 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(Boost_DEBUG on)
 
     #Linting and Tooling Setup
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL ON)
+    set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE BOOL true)
 endif()
 
 #Cerberus
 
 #cerberus terminal files
-file(GLOB terminal_srcs "src/terminal/*.cpp" "src/terminal/*.c")
+file(GLOB terminal_srcs "/src/cerberus/terminal/*.cpp" "/src/cerberus/terminal/*.c")
 
-add_executable(${PROJECT_NAME}  src/cerberus.cpp src/driver.cpp src/kinect.cpp ${terminal_srcs})
-target_include_directories(${PROJECT_NAME}  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${Boost_INCLUDE_DIRS})
+
+add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/kinect.cpp ${terminal_srcs})
+target_include_directories(${PROJECT_NAME}  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/ ${Boost_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME}  PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 
@@ -66,7 +68,7 @@ target_link_libraries(${PROJECT_NAME}
                         PUBLIC 
                             absl::absl
                             Boost::headers Boost::program_options
-                             ${OpenCV_LIBS} 
+                            ${OpenCV_LIBS} 
                             freenect
                             ftxui::screen ftxui::dom ftxui::component
                             TBB::tbb
@@ -74,10 +76,11 @@ target_link_libraries(${PROJECT_NAME}
 )  
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20 PRIVATE ${TBB_CXX_STD_FLAG})
+target_compile_options(${PROJECT_NAME} PRIVATE -ffast-math)
 
 
-set_target_properties(cerberus PROPERTIES PUBLIC_HEADER "include/cerberus.h")
-install(TARGETS cerberus)
+# set_target_properties(cerberus PROPERTIES PUBLIC_HEADER "include/cerberus.h")
+# install(TARGETS cerberus)
 
 
 if(UNIX)
