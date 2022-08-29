@@ -56,11 +56,12 @@ endif()
 #Cerberus
 
 #cerberus terminal files
-file(GLOB terminal_srcs "/src/cerberus/terminal/*.cpp" "/src/cerberus/terminal/*.c")
+file(GLOB terminal_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/terminal/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/terminal/*.c")
+message(STATUS "SOURCES:" ${terminal_srcs})
 
 
-add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/kinect.cpp ${terminal_srcs})
-target_include_directories(${PROJECT_NAME}  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/ ${Boost_INCLUDE_DIRS})
+add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/kinect.cpp ${terminal_srcs} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp )
+target_include_directories(${PROJECT_NAME}  PUBLIC include/ ${Boost_INCLUDE_DIRS})
 target_include_directories(${PROJECT_NAME}  PRIVATE ${OpenCV_INCLUDE_DIRS})
 
 

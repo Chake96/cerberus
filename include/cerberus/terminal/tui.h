@@ -46,245 +46,220 @@ static constexpr std::string_view rgb_stream{"RGB Stream"};
 
 class TUITerminal : public BaseMenu {
 
-public:
-  TUITerminal() = default;
+   public:
+    TUITerminal() = default;
 
-  void start() override { _screen.Loop(_main_menu); }
+    void start() override { _screen.Loop(_main_menu); }
 
-private: // vars
-  kinect::Kinect<kinect::CVNect> _kin = kinect::Kinect<kinect::CVNect>(
-      0, std::bind(std::mem_fn(&TUITerminal::_rgb_stream_cb), this, // NOLINT
-                   std::placeholders::_1));                         // NOLINT
+   private: // vars
+    kinect::Kinect<kinect::CVNect> _kin =
+        kinect::Kinect<kinect::CVNect>(0, std::bind(std::mem_fn(&TUITerminal::_rgb_stream_cb), this, // NOLINT
+                                                    std::placeholders::_1));                         // NOLINT
 
-  // tui
-  ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::TerminalOutput();
+    // tui
+    ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::TerminalOutput();
 
-  ftxui::Component _renderer;
+    ftxui::Component _renderer;
 
-  boost::lockfree::spsc_queue<cv::Mat, boost::lockfree::capacity<256>>
-      _rgb_stream{};
+    boost::lockfree::spsc_queue<cv::Mat, boost::lockfree::capacity<256>> _rgb_stream{};
 
-  struct LockedEvent {
-    std::mutex mtx;
-    ftxui::Event event;
-    std::atomic_bool set{false};
-  } _last_event;
+    struct LockedEvent {
+        std::mutex mtx;
+        ftxui::Event event;
+        std::atomic_bool set{false};
+    } _last_event;
 
-  void _submenu(const std::string_view &path) {
-    auto screen = ftxui::ScreenInteractive::FitComponent();
-    if (path == tui::paths::keyboard) {
-      _renderer = _keyboard_renderer(screen);
-    } else if (path == tui::paths::rgb_stream) {
-      _renderer = _rgb_stream_renderer(screen);
-    } else {
-      // TODO: log error
-      throw std::runtime_error(
-          absl::StrFormat("Failed to initalize Submenu with Path: %s", path));
+    void _submenu(const std::string_view& path) {
+        auto screen = ftxui::ScreenInteractive::FitComponent();
+        if (path == tui::paths::keyboard) {
+            _renderer = _keyboard_renderer(screen);
+        } else if (path == tui::paths::rgb_stream) {
+            _renderer = _rgb_stream_renderer(screen);
+        } else {
+            // TODO: log error
+            throw std::runtime_error(absl::StrFormat("Failed to initalize Submenu with Path: %s", path));
+        }
+
+        screen.Loop(_renderer);
     }
 
-    screen.Loop(_renderer);
-  }
+    ftxui::Component _main_menu = ftxui::Container::Vertical({
+        ftxui::Button("Quit", _screen.ExitLoopClosure()),
+        ftxui::Button("1. Keyboard Controls", [this] { _submenu(tui::paths::keyboard); }),
+        ftxui::Button("2. View RGB Stream", [this] { _submenu(tui::paths::rgb_stream); }),
+        ftxui::Button("3. OpenCV Show IMG",
+                      [this] {
+                          std::jthread([this] {
+                              using namespace std::chrono;          // NOLINT
+                              using namespace std::chrono_literals; // NOLINT
+                              using namespace cv;                   // NOLINT
 
-  ftxui::Component _main_menu = ftxui::Container::Vertical({
-      ftxui::Button("Quit", _screen.ExitLoopClosure()),
-      ftxui::Button("1. Keyboard Controls",
-                    [this] { _submenu(tui::paths::keyboard); }),
-      ftxui::Button("2. View RGB Stream",
-                    [this] { _submenu(tui::paths::rgb_stream); }),
-      ftxui::Button(
-          "3. OpenCV Show IMG",
-          [this] {
-            std::jthread([this] {
-              using namespace std::chrono;          // NOLINT
-              using namespace std::chrono_literals; // NOLINT
-              using namespace cv;                   // NOLINT
+                              thread_local auto start = std::chrono::high_resolution_clock::now(), // NOLINT
+                                  now = start;                                                     // NOLINT
+                              thread_local auto max_stream_duration = 10s;
+                              thread_local Mat rgb(Size(640, 480), CV_8UC3, Scalar(0));
 
-              thread_local auto
-                  start = std::chrono::high_resolution_clock::now(), // NOLINT
-                  now = start;                                       // NOLINT
-              thread_local auto max_stream_duration = 10s;
-              thread_local Mat rgb(Size(640, 480), CV_8UC3, Scalar(0));
+                              thread_local static auto run_stream = [&] {
+                                  namedWindow("rgb");
+                                  int key_interrupt = pollKey();
+                                  while (key_interrupt < 0 && std::chrono::duration_cast<std::chrono::seconds>(
+                                                                  now - start) <= max_stream_duration) {
+                                      now = high_resolution_clock::now();
+                                      if (_rgb_stream.pop(rgb)) {
+                                          cv::imshow("rgb", rgb);
+                                      }
 
-              thread_local static auto run_stream = [&] {
-                namedWindow("rgb");
-                int key_interrupt = pollKey();
-                while (key_interrupt < 0 &&
-                       std::chrono::duration_cast<std::chrono::seconds>(
-                           now - start) <= max_stream_duration) {
-                  now = high_resolution_clock::now();
-                  if (_rgb_stream.pop(rgb)) {
-                    cv::imshow("rgb", rgb);
-                  }
+                                      key_interrupt = pollKey();
+                                  }
+                                  destroyAllWindows();
+                              };
 
-                  key_interrupt = pollKey();
-                }
-                destroyAllWindows();
-              };
+                              run_stream();
+                          });
+                      }),
+    });
 
-              run_stream();
+   private: // funcs
+    ftxui::Component _keyboard_renderer(ftxui::ScreenInteractive& screen) {
+        using namespace ftxui; // NOLINT
+        Component new_render;
+        new_render = Renderer([&, this] {
+            static auto state_doc = vflow({});
+            Event ele_itr;
+            double acc_x{};
+            double acc_y{};
+            double acc_z{};
+            auto new_state = _kin.get_state(); // TODO fix not checking optional
+            // new_state.getAccelerometers(&acc_x, &acc_y, &acc_z);
+            auto accel_str = absl::StrFormat("Accelerometer\n\t X: %f, Y: %f, Z: %f\n", acc_x, acc_y, acc_z);
+            auto tilt_str = absl::StrFormat("Angle (Degrees): %f\n", new_state.cmded_angle.value());
+
+            state_doc = vflow({text("Tilt Motor State") | bgcolor(Color::Black) | color(Color::White) | bold,
+                               text(accel_str) | bgcolor(Color::White) | color(Color::Blue),
+                               text(tilt_str) | bgcolor(Color::White) | color(Color::Blue)});
+
+            return vbox({
+                text("Press Q to go back"),
+                ftxui::separator(),
+                window(text("Kinect State"), state_doc),
             });
-          }),
-  });
+        });
 
-private: // funcs
-  ftxui::Component _keyboard_renderer(ftxui::ScreenInteractive &screen) {
-    using namespace ftxui; // NOLINT
-    Component new_render;
-    new_render = Renderer([&, this] {
-      static auto state_doc = vflow({});
-      Event ele_itr;
-      double acc_x{};
-      double acc_y{};
-      double acc_z{};
-      auto new_state = _kin.get_state(); // TODO fix not checking optional
-      // new_state.getAccelerometers(&acc_x, &acc_y, &acc_z);
-      auto accel_str = absl::StrFormat(
-          "Accelerometer\n\t X: %f, Y: %f, Z: %f\n", acc_x, acc_y, acc_z);
-      auto tilt_str = absl::StrFormat("Angle (Degrees): %f\n",
-                                      new_state.cmded_angle.value());
-
-      state_doc =
-          vflow({text("Tilt Motor State") | bgcolor(Color::Black) |
-                     color(Color::White) | bold,
-                 text(accel_str) | bgcolor(Color::White) | color(Color::Blue),
-                 text(tilt_str) | bgcolor(Color::White) | color(Color::Blue)});
-
-      return vbox({
-          text("Press Q to go back"),
-          ftxui::separator(),
-          window(text("Kinect State"), state_doc),
-      });
-    });
-
-    new_render |= CatchEvent([&screen, this](const Event &event) {
-      static auto stringify = [](const Event &event) -> std::string {
-        if (event.is_character()) {
-          return event.character();
-        }
-        return "";
-      };
-      if (event.is_character()) {
-        auto str_input = stringify(event);
-        auto new_state = _kin.get_state();
-        if (!str_input.empty()) {
-          if (str_input.size() == 1) {
-            bool fast_rate{false};
-            switch (str_input.front()) {
-            case 'Q':
-              [[fallthrough]];
-            case 'q': {
-              screen.ResetPosition(true);
-              screen.ExitLoopClosure()();
-              break;
-            }
-            case 'P':
-              [[fallthrough]];
-            case 'p': {
-
-              break;
-            }
-            case 'S':
-              fast_rate = true;
-              [[fallthrough]];
-            case 's': {
-              double dif = (fast_rate)
-                               ? kinect::units::tilt_properties::fast_step
-                               : kinect::units::tilt_properties::slow_step;
-              auto new_ang =
-                  kinect::units::Degrees{new_state.cmded_angle.value() - dif};
-              _kin.set_tilt(new_ang);
-              break;
-            }
-            case 'W':
-              fast_rate = true;
-              [[fallthrough]];
-            case 'w': {
-              double dif = (fast_rate)
-                               ? kinect::units::tilt_properties::fast_step
-                               : kinect::units::tilt_properties::slow_step;
-              auto new_ang =
-                  kinect::units::Degrees{new_state.cmded_angle.value() + dif};
-              _kin.set_tilt(new_ang);
-            } break;
-            case 'C':
-            case 'c': {
-              auto new_color =
-                  (new_state.led_color == kinect::units::eLEDColors::GREEN)
-                      ? kinect::units::eLEDColors::YELLOW
-                      : kinect::units::eLEDColors::GREEN;
-              _kin.set_color(new_color);
-              break;
-            }
-            case 'R':
-              [[fallthrough]];
-            case 'r': {
-              _kin.set_tilt(kinect::units::Degrees{0.0});
-            }
-            default:
-              break;
-            }
-          }
-        }
-
-        return true;
-      }
-      return false;
-    });
-
-    return new_render;
-  }
-
-  ftxui::Component _rgb_stream_renderer(ftxui::ScreenInteractive &screen) {
-    using namespace ftxui; // NOLINT
-    // A triangle following the mouse, using braille characters.
-    Component renderer = Renderer([&] {
-      auto c = Canvas(640, 480);
-      cv::Mat rgb;
-      if (_rgb_stream.pop(rgb)) {
-        // using RGBPixel = cv::Point3_<uint8_t>;
-        // rgb.forEach<RGBPixel>(
-        //     [&c](const RGBPixel& px, const int* position) -> void {
-        //       c.DrawPoint(position[0], position[1], true,
-        //                   Color::RGB(px.z, px.y, px.x));
-        //     });
-        auto *data = static_cast<unsigned char *>(rgb.data);
-
-        tbb::parallel_for(
-            tbb::blocked_range2d<int, int>(0, rgb.rows, 0, rgb.cols),
-            [&](const tbb::blocked_range2d<int, int> &r) {
-              for (int i = r.rows().begin(), i_end = r.rows().end(); i < i_end;
-                   i++) {
-                for (int j = r.cols().begin(), j_end = r.cols().end();
-                     j < j_end; j++) {
-                  uchar b = data[i * rgb.step + rgb.channels() * j + 0];
-                  uchar g = data[i * rgb.step + rgb.channels() * j + 1];
-                  uchar r = data[i * rgb.step + rgb.channels() * j + 2];
-                  c.DrawPoint(j, i, true, Color::RGB(r, g, b));
+        new_render |= CatchEvent([&screen, this](const Event& event) {
+            static auto stringify = [](const Event& event) -> std::string {
+                if (event.is_character()) {
+                    return event.character();
                 }
-              }
-            });
+                return "";
+            };
+            if (event.is_character()) {
+                auto str_input = stringify(event);
+                auto new_state = _kin.get_state();
+                if (!str_input.empty()) {
+                    if (str_input.size() == 1) {
+                        bool fast_rate{false};
+                        switch (str_input.front()) {
+                            case 'Q':
+                                [[fallthrough]];
+                            case 'q': {
+                                screen.ResetPosition(true);
+                                screen.ExitLoopClosure()();
+                                break;
+                            }
+                            case 'P':
+                                [[fallthrough]];
+                            case 'p': {
 
-      } else {
-        c.DrawText(640 / 2, 480 / 2,
-                   absl::StrFormat("No Stream (%i)",
-                                   std::chrono::high_resolution_clock::now()
-                                       .time_since_epoch()
-                                       .count()),
-                   [](Pixel &p) {
-                     p.foreground_color = Color::Red;
-                     p.underlined = true;
-                     p.bold = true;
-                     p.background_color = Color::Black;
-                   });
-      }
-      screen.PostEvent(Event::Custom);
-      return canvas(std::move(c));
-    });
+                                break;
+                            }
+                            case 'S':
+                                fast_rate = true;
+                                [[fallthrough]];
+                            case 's': {
+                                double dif = (fast_rate) ? kinect::units::tilt_properties::fast_step
+                                                         : kinect::units::tilt_properties::slow_step;
+                                auto new_ang = kinect::units::Degrees{new_state.cmded_angle.value() - dif};
+                                _kin.set_tilt(new_ang);
+                                break;
+                            }
+                            case 'W':
+                                fast_rate = true;
+                                [[fallthrough]];
+                            case 'w': {
+                                double dif = (fast_rate) ? kinect::units::tilt_properties::fast_step
+                                                         : kinect::units::tilt_properties::slow_step;
+                                auto new_ang = kinect::units::Degrees{new_state.cmded_angle.value() + dif};
+                                _kin.set_tilt(new_ang);
+                            } break;
+                            case 'C':
+                            case 'c': {
+                                auto new_color = (new_state.led_color == kinect::units::eLEDColors::GREEN)
+                                                     ? kinect::units::eLEDColors::YELLOW
+                                                     : kinect::units::eLEDColors::GREEN;
+                                _kin.set_color(new_color);
+                                break;
+                            }
+                            case 'R':
+                                [[fallthrough]];
+                            case 'r': {
+                                _kin.set_tilt(kinect::units::Degrees{0.0});
+                            }
+                            default:
+                                break;
+                        }
+                    }
+                }
 
-    return renderer;
-  }
+                return true;
+            }
+            return false;
+        });
 
-  void _rgb_stream_cb(const cv::Mat &rgb_mat) { _rgb_stream.push(rgb_mat); }
+        return new_render;
+    }
+
+    ftxui::Component _rgb_stream_renderer(ftxui::ScreenInteractive& screen) {
+        using namespace ftxui; // NOLINT
+        // A triangle following the mouse, using braille characters.
+        Component renderer = Renderer([&] {
+            auto c = Canvas(640, 480);
+            cv::Mat rgb;
+            if (_rgb_stream.pop(rgb)) {
+                std::mutex mtx;
+                auto* data = rgb.data;
+                tbb::parallel_for(tbb::blocked_range2d<int>(0, rgb.rows - 1, 0, rgb.cols - 1),
+                                  [&](const tbb::blocked_range2d<int>& mat) {
+                                      for (int i = mat.rows().begin(); i != mat.rows().end(); ++i) {
+                                          for (int j = mat.cols().begin(); j != mat.cols().end(); ++j) {
+                                              uchar b = data[i * rgb.step + rgb.channels() * j + 0];
+                                              uchar g = data[i * rgb.step + rgb.channels() * j + 1];
+                                              uchar r = data[i * rgb.step + rgb.channels() * j + 2];
+                                              std::scoped_lock lck(mtx);
+                                              c.DrawPoint(j, i, true, Color::RGB(r, g, b));
+                                          }
+                                      }
+                                  });
+
+            } else {
+                c.DrawText(640 / 2, 480 / 2,
+
+                           absl::StrFormat("No Stream (%i)",
+                                           std::chrono::high_resolution_clock::now().time_since_epoch().count()),
+                           [](Pixel& p) {
+                               p.foreground_color = Color::Red;
+                               p.underlined = true;
+                               p.bold = true;
+                               p.background_color = Color::Black;
+                           });
+            }
+            screen.PostEvent(Event::Custom);
+            return canvas(std::move(c));
+        });
+
+        return renderer;
+    }
+
+    void _rgb_stream_cb(const cv::Mat& rgb_mat) { _rgb_stream.push(rgb_mat); }
 };
 
 } // namespace cerberus::terminal
