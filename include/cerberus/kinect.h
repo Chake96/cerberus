@@ -90,11 +90,12 @@ class Kinect<DeviceType> final {
     const int kID;
 
     ~Kinect() {
-        freenect_shutdown(_fn_cntx);
         _stop_flag.set_value();
         try {
             _dev->stopDepth();
             _dev->stopVideo();
+            freenect_shutdown(_fn_cntx);
+            delete _dev;
         } catch (...) {}
     }
 
@@ -118,7 +119,7 @@ class Kinect<DeviceType> final {
         _dev->register_video_signal(video_cb);
         _dev_update_thrd = std::jthread(&Kinect::_update_task, this);
         _dev_update_thrd.detach();
-
+        this->set_tilt(SI::degree_t<double>{0});
         //cameras
         _dev->startVideo();
         // _dev->startDepth();
