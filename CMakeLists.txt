@@ -12,12 +12,13 @@ conan_basic_setup()
 #3rd Party Setup
 
 find_package(libfreenect REQUIRED)
+set(BUILD_AUDIO ON CACHE BOOL ON)
 
 #Intel TBB Threading
 find_package(TBB COMPONENTS tbb REQUIRED)
 
 ##OpenCV
-find_package(OpenCV REQUIRED core videoio imgproc imgcodecs highgui)
+find_package(OpenCV REQUIRED core videoio imgproc imgcodecs highgui objdetect)
 set(WITH_TBB ON)
 
 
