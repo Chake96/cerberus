@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
 #include <SI/angle.h>
@@ -34,6 +35,7 @@
 #include <opencv2/core/matx.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
@@ -88,11 +90,14 @@ namespace cerberus::terminal {
             screen.Loop(_renderer);
         }
 
+        //CV common variables
+        static constexpr float cascade_image_scale{1.5F};
+
         ftxui::Component _main_menu = ftxui::Container::Vertical({
             ftxui::Button("Quit", _screen.ExitLoopClosure()),
             ftxui::Button("1. Keyboard Controls", [this] { _submenu(tui::paths::keyboard); }),
-            ftxui::Button("2. View RGB Stream", [this] { _submenu(tui::paths::rgb_stream); }),
-            ftxui::Button("3. OpenCV Show IMG",
+            ftxui::Button("2. View Terminal RGB Stream", [this] { _submenu(tui::paths::rgb_stream); }),
+            ftxui::Button("3. Show Stream",
                           [this] {
                               std::jthread([this] {
                                   using namespace std::chrono;          // NOLINT
@@ -107,8 +112,8 @@ namespace cerberus::terminal {
                                   thread_local static auto run_stream = [&] {
                                       namedWindow("rgb");
                                       int key_interrupt = pollKey();
-                                      while (key_interrupt < 0 && std::chrono::duration_cast<std::chrono::seconds>(
-                                                                      now - start) <= max_stream_duration) {
+                                      while (key_interrupt < 0 &&
+                                             std::chrono::duration_cast<std::chrono::seconds>(now - start) <= max_stream_duration) {
                                           now = high_resolution_clock::now();
                                           if (_rgb_stream.pop(rgb)) {
                                               cv::imshow("rgb", rgb);
@@ -123,7 +128,7 @@ namespace cerberus::terminal {
                               });
                           }),
             ftxui::Button(
-                "4. OpenCV Face Detection",
+                "4. Face Detection",
                 [this] {
                     std::jthread([this] {
                         using namespace std::chrono;          // NOLINT
@@ -140,32 +145,30 @@ namespace cerberus::terminal {
                             namedWindow("Face Tracking");
                             int key_interrupt = pollKey();
                             //NOLINTBEGIN
-                            auto swidth = static_cast<int>(static_cast<float>(rgb.size().width) / cascade_image_scale);
-                            auto sheight = static_cast<int>(static_cast<float>(rgb.size().height) / cascade_image_scale);
+                            const auto swidth = static_cast<int>(static_cast<float>(rgb.size().width) / cascade_image_scale);
+                            const auto sheight = static_cast<int>(static_cast<float>(rgb.size().height) / cascade_image_scale);
                             //NOLINTEND
                             // Detect faces
                             while (key_interrupt < 0) {
                                 if (_rgb_stream.pop(rgb)) {
                                     resize(rgb, cascade_grayscale, cv::Size(swidth, sheight));
                                     cvtColor(cascade_grayscale, cascade_grayscale, cv::COLOR_BGR2GRAY);
-                                    face_cf.detectMultiScale(cascade_grayscale, faces, 1.1, 3, 0, cv::Size(50, 50));
+                                    face_cf.detectMultiScale(rgb, faces, 1.1, 3, 0, cv::Size(50, 50));
                                     if (!faces.empty()) {
                                         // Apply rectangles to BGR image
-                                        for (auto& face : faces) {
+                                        for (const auto& face : faces) {
                                             cv::rectangle(
-                                                rgb,
+                                                cascade_grayscale,
                                                 cv::Point(cvRound(static_cast<float>(face.x) * cascade_image_scale),
-                                                          cvRound(static_cast<float>(face.y) *
-                                                                  cascade_image_scale)), // Upper left point
-                                                cv::Point(cvRound((static_cast<float>(face.x) +
-                                                                   static_cast<float>(face.width - 1)) *
+                                                          cvRound(static_cast<float>(face.y) * cascade_image_scale)), // Upper left point
+                                                cv::Point(cvRound((static_cast<float>(face.x) + static_cast<float>(face.width - 1)) *
                                                                   cascade_image_scale),
-                                                          cvRound((static_cast<float>(face.y) +
-                                                                   static_cast<float>(face.height - 1)) *
+                                                          cvRound((static_cast<float>(face.y) + static_cast<float>(face.height - 1)) *
                                                                   cascade_image_scale)), // Lower right point
                                                 cv::Scalar(0, 0, 255)                    // Red line
                                             );
                                         }
+                                        faces.clear();
                                     }
                                     cv::imshow("Face Detect", rgb);
                                     key_interrupt = pollKey();
@@ -177,6 +180,166 @@ namespace cerberus::terminal {
                         run_stream();
                     });
                 }),
+            ftxui::Button(
+                "5. Cascade Grayscale Body Detection",
+                [this] {
+                    std::jthread([this] {
+                        using namespace std::chrono;          // NOLINT
+                        using namespace std::chrono_literals; // NOLINT
+                        using namespace cv;                   // NOLINT
+
+                        thread_local Mat rgb(Size(640, 480), CV_8UC3, Scalar(0));
+                        thread_local Mat cascade_grayscale;
+                        thread_local cv::CascadeClassifier body_cf{"/usr/share/opencv4/haarcascades/haarcascade_fullbody.xml"};
+                        std::vector<cv::Rect> bodies;
+
+                        thread_local static auto run_stream = [&] {
+                            namedWindow("Cascade Grayscale Body Tracking");
+                            int key_interrupt = pollKey();
+                            //NOLINTBEGIN
+                            const auto swidth = static_cast<int>(static_cast<float>(rgb.size().width) / cascade_image_scale);
+                            const auto sheight = static_cast<int>(static_cast<float>(rgb.size().height) / cascade_image_scale);
+                            //NOLINTEND
+                            // Detect faces
+                            while (key_interrupt < 0) {
+                                if (_rgb_stream.pop(rgb)) {
+                                    resize(rgb, cascade_grayscale, cv::Size(swidth, sheight));
+                                    cvtColor(cascade_grayscale, cascade_grayscale, cv::COLOR_BGR2GRAY);
+                                    body_cf.detectMultiScale(rgb, bodies, 1.1, 2, 1, cv::Size(40, 70)), Size(300, 200);
+                                    if (!body_cf.empty()) {
+                                        // Apply rectangles to BGR image
+                                        for (const auto& body : bodies) {
+                                            cv::rectangle(
+                                                cascade_grayscale,
+                                                cv::Point(cvRound(static_cast<float>(body.x) * cascade_image_scale),
+                                                          cvRound(static_cast<float>(body.y) * cascade_image_scale)), // Upper left point
+                                                cv::Point(cvRound((static_cast<float>(body.x) + static_cast<float>(body.width - 1)) *
+                                                                  cascade_image_scale),
+                                                          cvRound((static_cast<float>(body.y) + static_cast<float>(body.height - 1)) *
+                                                                  cascade_image_scale)), // Lower right point
+                                                cv::Scalar(0, 0, 255)                    // Red line
+                                            );
+                                        }
+                                        bodies.clear();
+                                    }
+                                    cv::imshow("Cascade Grayscale Body Tracking", rgb);
+                                    key_interrupt = pollKey();
+                                }
+                            }
+                            destroyAllWindows();
+                        };
+
+                        run_stream();
+                    });
+                }),
+            ftxui::Button(
+                "6. Cascade Color Body Detection",
+                [this] {
+                    std::jthread([this] {
+                        using namespace std::chrono;          // NOLINT
+                        using namespace std::chrono_literals; // NOLINT
+                        using namespace cv;                   // NOLINT
+
+                        thread_local Mat rgb(Size(640, 480), CV_8UC3, Scalar(0));
+                        thread_local cv::CascadeClassifier body_cf{"/usr/share/opencv4/haarcascades/haarcascade_fullbody.xml"};
+                        static constexpr float cascade_image_scale{1.5F};
+                        std::vector<cv::Rect> bodies;
+
+                        thread_local static auto run_stream = [&] {
+                            namedWindow("Cascade Color Body Tracking");
+                            int key_interrupt = pollKey();
+                            // Detect faces
+                            while (key_interrupt < 0) {
+                                if (_rgb_stream.pop(rgb)) {
+                                    body_cf.detectMultiScale(rgb, bodies, 1.1, 2, 1, cv::Size(40, 70)), Size(300, 200);
+                                    if (!body_cf.empty()) {
+                                        // Apply rectangles to BGR image
+                                        for (const auto& body : bodies) {
+                                            cv::rectangle(
+                                                rgb,
+                                                cv::Point(cvRound(static_cast<float>(body.x) * cascade_image_scale),
+                                                          cvRound(static_cast<float>(body.y) * cascade_image_scale)), // Upper left point
+                                                cv::Point(cvRound((static_cast<float>(body.x) + static_cast<float>(body.width - 1)) *
+                                                                  cascade_image_scale),
+                                                          cvRound((static_cast<float>(body.y) + static_cast<float>(body.height - 1)) *
+                                                                  cascade_image_scale)), // Lower right point
+                                                cv::Scalar(0, 0, 255)                    // Red line
+                                            );
+                                        }
+                                        bodies.clear();
+                                    }
+                                    cv::imshow("Cascade Color Body Tracking", rgb);
+                                    key_interrupt = pollKey();
+                                }
+                            }
+                            destroyAllWindows();
+                        };
+
+                        run_stream();
+                    });
+                }),
+            ftxui::Button("7. HOG Pedestrian Detection",
+                          [this] {
+                              std::jthread([this] {
+                                  using namespace std::chrono;          // NOLINT
+                                  using namespace std::chrono_literals; // NOLINT
+                                  using namespace cv;                   // NOLINT
+
+                                  thread_local Mat rgb(Size(640, 480), CV_8UC3, Scalar(0));
+                                  static thread_local cv::HOGDescriptor hog_d(Size(48, 96), Size(16, 16), Size(8, 8), Size(8, 8), 9, 1, -1,
+                                                                              HOGDescriptor::L2Hys, 0.2, true,
+                                                                              cv::HOGDescriptor::DEFAULT_NLEVELS);
+                                  //   hog_d.setSVMDetector(cv::HOGDescriptor::getDefaultPeopleDetector());
+                                  hog_d.setSVMDetector(cv::HOGDescriptor::getDaimlerPeopleDetector());
+                                  thread_local std::vector<cv::Rect> people;
+                                  thread_local std::vector<double> confidences{};
+
+                                  thread_local static auto run_stream = [&] {
+                                      namedWindow("Pedestrian Tracking");
+                                      int key_interrupt = pollKey();
+                                      // Detect faces
+                                      double detection_threshold{1.0};
+                                      while (key_interrupt < 0) {
+                                          if (_rgb_stream.pop(rgb)) {
+                                              hog_d.detectMultiScale(rgb, people, confidences, detection_threshold, Size(8, 8), Size(),
+                                                                     1.05, 2, false);
+                                              if (!people.empty()) {
+                                                  // Apply rectangles to BGR image
+                                                  auto confidence = confidences.begin();
+                                                  for (auto person = people.begin(); person != people.end();
+                                                       std::advance(person, 1), std::advance(confidence, 1)) {
+
+                                                      cv::rectangle(rgb, person->tl(), person->br(), cv::Scalar(0, 255, 0), 2);
+                                                      if (confidence != confidences.end()) {
+                                                          cv::putText(rgb, absl::StrFormat("Confidence: %f", *confidence),
+                                                                      Point(person->x, person->y), FONT_HERSHEY_SIMPLEX, 1.0,
+                                                                      Scalar(255, 100, 0), 2);
+                                                      }
+                                                  }
+                                                  people.clear();
+                                              }
+                                              cv::putText(rgb, absl::StrFormat("DThreshold: %f", detection_threshold), Point(5, 25),
+                                                          FONT_HERSHEY_SIMPLEX, 0.4, Scalar(255, 100, 0), 2);
+                                              cv::imshow("Pedestrian Tracking", rgb);
+                                              //UP: 1113938
+                                              //DOWN: 1113940
+                                              key_interrupt = pollKey();
+                                              if (key_interrupt == 1113938) {
+                                                  detection_threshold += .1;
+                                                  key_interrupt = -1;
+                                              }
+                                              if (key_interrupt == 1113940) {
+                                                  detection_threshold -= 0.05;
+                                                  key_interrupt = -1;
+                                              }
+                                          }
+                                      }
+                                      destroyAllWindows();
+                                  };
+
+                                  run_stream();
+                              });
+                          }),
         });
 
       private: // funcs
@@ -236,8 +399,8 @@ namespace cerberus::terminal {
                                     fast_rate = true;
                                     [[fallthrough]];
                                 case 's': {
-                                    double dif = (fast_rate) ? kinect::units::tilt_properties::fast_step
-                                                             : kinect::units::tilt_properties::slow_step;
+                                    double dif =
+                                        (fast_rate) ? kinect::units::tilt_properties::fast_step : kinect::units::tilt_properties::slow_step;
                                     auto new_ang = kinect::units::Degrees{new_state.cmded_angle.value() - dif};
                                     _kin.set_tilt(new_ang);
                                     break;
@@ -246,8 +409,8 @@ namespace cerberus::terminal {
                                     fast_rate = true;
                                     [[fallthrough]];
                                 case 'w': {
-                                    double dif = (fast_rate) ? kinect::units::tilt_properties::fast_step
-                                                             : kinect::units::tilt_properties::slow_step;
+                                    double dif =
+                                        (fast_rate) ? kinect::units::tilt_properties::fast_step : kinect::units::tilt_properties::slow_step;
                                     auto new_ang = kinect::units::Degrees{new_state.cmded_angle.value() + dif};
                                     _kin.set_tilt(new_ang);
                                 } break;
@@ -303,8 +466,7 @@ namespace cerberus::terminal {
                 } else {
                     c.DrawText(640 / 2, 480 / 2,
 
-                               absl::StrFormat("No Stream (%i)",
-                                               std::chrono::high_resolution_clock::now().time_since_epoch().count()),
+                               absl::StrFormat("No Stream (%i)", std::chrono::high_resolution_clock::now().time_since_epoch().count()),
                                [](Pixel& p) {
                                    p.foreground_color = Color::Red;
                                    p.underlined = true;

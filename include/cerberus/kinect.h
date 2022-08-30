@@ -56,9 +56,8 @@ namespace cerberus::kinect {
             auto* rgb_data = static_cast<uint8_t*>(video);
             std::copy(rgb_data, rgb_data + getVideoBufferSize(), _rgb_buffer.begin());
             rgb.data = rgb_data;
-            cv::cvtColor(
-                rgb, rgb,
-                cv::COLOR_RGB2BGR); //TODO: review if this conversion is necessary based on Kinect's ordering of RGB stream
+            cv::cvtColor(rgb, rgb,
+                         cv::COLOR_RGB2BGR); //TODO: review if this conversion is necessary based on Kinect's ordering of RGB stream
             _video_signal(std::move(rgb));
         }
 
@@ -72,8 +71,7 @@ namespace cerberus::kinect {
         std::vector<uint8_t> _rgb_buffer;
     };
 
-    template <class DeviceType,
-              typename = typename std::enable_if_t<std::is_base_of_v<Freenect::FreenectDevice, DeviceType>>>
+    template <class DeviceType, typename = typename std::enable_if_t<std::is_base_of_v<Freenect::FreenectDevice, DeviceType>>>
     class Kinect;
 
     template <class DeviceType>
@@ -98,10 +96,6 @@ namespace cerberus::kinect {
             try {
                 _dev->stopVideo();
             } catch (...) {}
-            try {
-                freenect_shutdown(_fn_cntx);
-            } catch (...) {}
-            delete _dev;
         }
 
         Kinect(int id, std::function<void(cv::Mat)> video_cb) : kID(id) {
@@ -112,8 +106,7 @@ namespace cerberus::kinect {
             // It does not support audio, so we do not claim it.
             freenect_set_log_level(_fn_cntx, freenect_loglevel::FREENECT_LOG_ERROR);
             freenect_select_subdevices(
-                _fn_cntx,
-                static_cast<freenect_device_flags>(FREENECT_DEVICE_MOTOR | FREENECT_DEVICE_CAMERA | FREENECT_DEVICE_AUDIO));
+                _fn_cntx, static_cast<freenect_device_flags>(FREENECT_DEVICE_MOTOR | FREENECT_DEVICE_CAMERA | FREENECT_DEVICE_AUDIO));
             int num_devices = freenect_num_devices(_fn_cntx);
             //init underlying device
             // _dev = std::make_unique<DeviceType>(_fn_cntx, kID);
@@ -125,7 +118,7 @@ namespace cerberus::kinect {
             _dev->register_video_signal(video_cb);
             _dev_update_thrd = std::jthread(&Kinect::_update_task, this);
             _dev_update_thrd.detach();
-            this->set_tilt(SI::degree_t<double>{0});
+            this->set_tilt(SI::degree_t<double>{-18});
             //cameras
             _dev->startVideo();
             _dev->startDepth();

@@ -41,7 +41,7 @@ BraceWrapping:
 BreakBeforeBinaryOperators: None
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeColon
-ColumnLimit: 124 
+ColumnLimit: 140
 CompactNamespaces: false
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
