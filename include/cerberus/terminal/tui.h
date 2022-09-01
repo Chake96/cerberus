@@ -15,8 +15,7 @@
 #include <absl/strings/str_format.h>
 #include <boost/lockfree/policies.hpp>
 #include <boost/lockfree/spsc_queue.hpp>
-#include <cerberus/kinect.h>
-#include <cerberus/kinect_manager.h>
+#include <cerberus/cameras/kinect/kinect.h>
 #include <cerberus/terminal/base_menu.h>
 #include <ftxui/component/captured_mouse.hpp> // for ftxui
 #include <ftxui/component/component.hpp>      // for CatchEvent, Renderer
@@ -55,18 +54,19 @@ namespace cerberus::terminal {
         void start() override { _screen.Loop(_main_menu); }
 
       private: // vars
-        kinect::Kinect<kinect::CVNect> _kin =
-            kinect::Kinect<kinect::CVNect>(0, std::bind(std::mem_fn(&TUITerminal::_rgb_stream_cb), this, // NOLINT
-                                                        std::placeholders::_1));                         // NOLINT
-                                                                                                         //OpenCV
-        // cv::CascadeClassifier _face_cf{"/usr/share/opencv4/lbpcascades/lbpcascade_frontalface_improved.xml"}; //TODO: implement faster CV model
+        cameras::kinect::Kinect<cameras::kinect::CVNect> _kin = cameras::kinect::Kinect<cameras::kinect::CVNect>(
+            0,
+            std::bind(std::mem_fn(&TUITerminal::_rgb_stream_cb), this,                            // NOLINT
+                      std::placeholders::_1),                                                     //NOLINT
+            std::bind(std::mem_fn(&TUITerminal::_depth_stream_cb), this, std::placeholders::_1)); // NOLINT
+                                                                                                  //OpenCV
 
         // tui
         ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::TerminalOutput();
 
         ftxui::Component _renderer;
 
-        boost::lockfree::spsc_queue<cv::Mat, boost::lockfree::capacity<256>> _rgb_stream{};
+        boost::lockfree::spsc_queue<cv::Mat, boost::lockfree::capacity<256>> _rgb_stream{}, _depth_stream{};
 
         struct LockedEvent {
             std::mutex mtx;
@@ -117,6 +117,36 @@ namespace cerberus::terminal {
                                           now = high_resolution_clock::now();
                                           if (_rgb_stream.pop(rgb)) {
                                               cv::imshow("rgb", rgb);
+                                          }
+
+                                          key_interrupt = pollKey();
+                                      }
+                                      destroyAllWindows();
+                                  };
+
+                                  run_stream();
+                              });
+                          }),
+            ftxui::Button("3. Show Depth",
+                          [this] {
+                              std::jthread([this] {
+                                  using namespace std::chrono;          // NOLINT
+                                  using namespace std::chrono_literals; // NOLINT
+                                  using namespace cv;                   // NOLINT
+
+                                  thread_local auto start = std::chrono::high_resolution_clock::now(), // NOLINT
+                                      now = start;                                                     // NOLINT
+                                  thread_local auto max_stream_duration = 10s;
+                                  thread_local Mat rgb(Size(640, 480), CV_8UC3, Scalar(0));
+
+                                  thread_local static auto run_stream = [&] {
+                                      namedWindow("Depth");
+                                      int key_interrupt = pollKey();
+                                      while (key_interrupt < 0 &&
+                                             std::chrono::duration_cast<std::chrono::seconds>(now - start) <= max_stream_duration) {
+                                          now = high_resolution_clock::now();
+                                          if (_depth_stream.pop(rgb)) {
+                                              cv::imshow("Depth", rgb);
                                           }
 
                                           key_interrupt = pollKey();
@@ -399,9 +429,9 @@ namespace cerberus::terminal {
                                     fast_rate = true;
                                     [[fallthrough]];
                                 case 's': {
-                                    double dif =
-                                        (fast_rate) ? kinect::units::tilt_properties::fast_step : kinect::units::tilt_properties::slow_step;
-                                    auto new_ang = kinect::units::Degrees{new_state.cmded_angle.value() - dif};
+                                    double dif = (fast_rate) ? cameras::kinect::units::tilt_properties::fast_step
+                                                             : cameras::kinect::units::tilt_properties::slow_step;
+                                    auto new_ang = cameras::kinect::units::Degrees{new_state.cmded_angle.value() - dif};
                                     _kin.set_tilt(new_ang);
                                     break;
                                 }
@@ -409,23 +439,23 @@ namespace cerberus::terminal {
                                     fast_rate = true;
                                     [[fallthrough]];
                                 case 'w': {
-                                    double dif =
-                                        (fast_rate) ? kinect::units::tilt_properties::fast_step : kinect::units::tilt_properties::slow_step;
-                                    auto new_ang = kinect::units::Degrees{new_state.cmded_angle.value() + dif};
+                                    double dif = (fast_rate) ? cameras::kinect::units::tilt_properties::fast_step
+                                                             : cameras::kinect::units::tilt_properties::slow_step;
+                                    auto new_ang = cameras::kinect::units::Degrees{new_state.cmded_angle.value() + dif};
                                     _kin.set_tilt(new_ang);
                                 } break;
                                 case 'C':
                                 case 'c': {
-                                    auto new_color = (new_state.led_color == kinect::units::eLEDColors::GREEN)
-                                                         ? kinect::units::eLEDColors::YELLOW
-                                                         : kinect::units::eLEDColors::GREEN;
+                                    auto new_color = (new_state.led_color == cameras::kinect::units::eLEDColors::GREEN)
+                                                         ? cameras::kinect::units::eLEDColors::YELLOW
+                                                         : cameras::kinect::units::eLEDColors::GREEN;
                                     _kin.set_color(new_color);
                                     break;
                                 }
                                 case 'R':
                                     [[fallthrough]];
                                 case 'r': {
-                                    _kin.set_tilt(kinect::units::Degrees{0.0});
+                                    _kin.set_tilt(cameras::kinect::units::Degrees{0.0});
                                 }
                                 default:
                                     break;
@@ -482,6 +512,7 @@ namespace cerberus::terminal {
         }
 
         void _rgb_stream_cb(const cv::Mat& rgb_mat) { _rgb_stream.push(rgb_mat); }
+        void _depth_stream_cb(const cv::Mat& rgb_mat) { _depth_stream.push(rgb_mat); }
     };
 
 } // namespace cerberus::terminal

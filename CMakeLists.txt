@@ -11,8 +11,7 @@ conan_basic_setup()
 
 #3rd Party Setup
 
-find_package(libfreenect REQUIRED)
-set(BUILD_AUDIO ON CACHE BOOL ON)
+find_package(libfreenect)
 
 #Intel TBB Threading
 find_package(TBB COMPONENTS tbb REQUIRED)
@@ -37,6 +36,24 @@ set(Boost_USE_STATIC_LIBS ON)
 ##SI - Standard Units
 find_package(si REQUIRED)
 
+##Lib USB
+# find_package(libusb-1.0 REQUIRED)
+find_path(LIBUSB_INCLUDE_DIR
+  NAMES libusb.h
+  PATH_SUFFIXES "include" "libusb" "libusb-1.0")
+find_library(LIBUSB_LIBRARY
+  NAMES usb
+  PATH_SUFFIXES "lib" "lib32" "lib64")
+include_directories(${LIBUSB_1_INCLUDE_DIRS})
+
+#SPDLog
+if(NOT TARGET spdlog)
+    # Stand-alone build
+    find_package(spdlog REQUIRED)
+endif()
+
+# --------------------
+
 
 ##FreeNect
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/conan_toolchain.cmake" CACHE STRING "")
@@ -56,14 +73,16 @@ endif()
 
 #Cerberus
 
-#cerberus terminal files
+##cerberus terminal files
 file(GLOB terminal_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/terminal/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/terminal/*.c")
-message(STATUS "SOURCES:" ${terminal_srcs})
+
+##cerberus camera files
+file(GLOB camera_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cameras/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cameras/*.c")
 
 
-add_executable(${PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/kinect.cpp ${terminal_srcs} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp )
+add_executable(${PROJECT_NAME} ${terminal_srcs} ${camera_srcs} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp )
 target_include_directories(${PROJECT_NAME}  PUBLIC include/ ${Boost_INCLUDE_DIRS})
-target_include_directories(${PROJECT_NAME}  PRIVATE ${OpenCV_INCLUDE_DIRS})
+target_include_directories(${PROJECT_NAME}  PRIVATE ${OpenCV_INCLUDE_DIRS} )
 
 
 target_link_libraries(${PROJECT_NAME} 
@@ -75,6 +94,8 @@ target_link_libraries(${PROJECT_NAME}
                             ftxui::screen ftxui::dom ftxui::component
                             TBB::tbb
                             SI::SI
+                        PRIVATE
+                            spdlog::spdlog
 )  
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20 PRIVATE ${TBB_CXX_STD_FLAG})

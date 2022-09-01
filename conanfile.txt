@@ -5,6 +5,8 @@
     ftxui/3.0.0
     onetbb/2021.3.0
     si/2.5.0
+    libusb/1.0.26
+    spdlog/1.10.0
 
 [generators]
     cmake_paths
