@@ -1,5 +1,5 @@
-#ifndef __CERBERUS_KINECT_H_
-#define __CERBERUS_KINECT_H_
+#ifndef __CERBERUS_CAMERAS_KINECT_H_
+#define __CERBERUS_CAMERAS_KINECT_H_
 
 #include <chrono>
 #include <cstdint>
@@ -19,6 +19,7 @@
 #include <SI/mass.h>
 #include <absl/strings/str_format.h>
 #include <boost/signals2.hpp>
+#include <boost/signals2/connection.hpp>
 #include <libfreenect/libfreenect.h>
 #include <libfreenect/libfreenect.hpp>
 #include <opencv2/core/mat.hpp>
@@ -26,12 +27,13 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/objdetect.hpp>
 
-namespace cerberus::kinect {
+namespace cerberus::cameras::kinect {
 
     const SI::kilo_gram_t<long double> kg{0}; //NOLINT
     namespace units {
         enum class eLEDColors { OFF = 0, GREEN, RED, YELLOW, BLINK_GREEN, BLINK_R_Y };
         namespace tilt_properties {
+            static constexpr double init_tilt{-18};
             static constexpr double fast_step = 5, slow_step = 2;
             static constexpr double epsilon{0.25};
             enum class eStatus { STOPPED, AT_LIMIT, MOVING };
@@ -50,6 +52,7 @@ namespace cerberus::kinect {
         CVNect(freenect_context* _ctx, int _index)
             : Freenect::FreenectDevice(_ctx, _index),
               _rgb_buffer(freenect_find_video_mode(FREENECT_RESOLUTION_MEDIUM, FREENECT_VIDEO_RGB).bytes) {}
+        //_depth_buffer(/*freenect_get_depth_mode(FREENECT_DEPTH_11BIT).bytes*/) {}
 
         void VideoCallback(void* video, [[maybe_unused]] uint32_t timestamp) override {
             cv::Mat rgb{cv::Size(640, 480), CV_8UC3, cv::Scalar(0)};
@@ -61,14 +64,25 @@ namespace cerberus::kinect {
             _video_signal(std::move(rgb));
         }
 
-        void DepthCallback([[maybe_unused]] void* _depth, [[maybe_unused]] uint32_t timestamp) override {}
+        void DepthCallback([[maybe_unused]] void* depth_in, [[maybe_unused]] uint32_t timestamp) override {
+            // auto* depth_data = static_cast<uint16_t*>(depth_in);
+            // std::copy(depth_data, depth_data + getDepthBufferSize(), _depth_buffer.begin());
+            // cv::Mat depth{cv::Size(640, 480), CV_16UC1, depth_data};
+            // _depth_signal(depth);
+        }
 
-        virtual void register_video_signal(const std::function<void(cv::Mat)>& cb) { _video_signal.connect(cb); }
+        virtual boost::signals2::connection register_video_signal(const std::function<void(cv::Mat)>& cb) {
+            return _video_signal.connect(cb);
+        }
+        virtual boost::signals2::connection register_depth_signal(const std::function<void(cv::Mat)>& cb) {
+            return _depth_signal.connect(cb);
+        }
 
       protected:
         uint8_t *_libs_buf, *_cb_buf, *_current_frame;
-        boost::signals2::signal<void(cv::Mat)> _video_signal;
+        boost::signals2::signal<void(cv::Mat)> _video_signal, _depth_signal;
         std::vector<uint8_t> _rgb_buffer;
+        std::vector<uint16_t> _depth_buffer;
     };
 
     template <class DeviceType, typename = typename std::enable_if_t<std::is_base_of_v<Freenect::FreenectDevice, DeviceType>>>
@@ -98,7 +112,7 @@ namespace cerberus::kinect {
             } catch (...) {}
         }
 
-        Kinect(int id, std::function<void(cv::Mat)> video_cb) : kID(id) {
+        Kinect(int id, std::function<void(cv::Mat)> video_cb, std::function<void(cv::Mat)> depth_cb) : kID(id) {
             //init context
             if (freenect_init(&_fn_cntx, nullptr) < 0)
                 throw std::runtime_error("Cannot initialize freenect library");
@@ -116,12 +130,13 @@ namespace cerberus::kinect {
             }
 
             _dev->register_video_signal(video_cb);
+            _dev->register_depth_signal(depth_cb);
             _dev_update_thrd = std::jthread(&Kinect::_update_task, this);
             _dev_update_thrd.detach();
-            this->set_tilt(SI::degree_t<double>{-18});
+            this->set_tilt(SI::degree_t<double>{units::tilt_properties::init_tilt});
             //cameras
             _dev->startVideo();
-            _dev->startDepth();
+            // _dev->startDepth();
         }
 
         State get_state() {
@@ -170,7 +185,7 @@ namespace cerberus::kinect {
         std::promise<void> _stop_flag;
         std::jthread _dev_update_thrd;
         freenect_context* _fn_cntx;
-        // std::unique_ptr<DeviceType> _dev{nullptr};
+
         DeviceType* _dev{nullptr};
         Freenect::Freenect _freenect;
 
@@ -211,6 +226,6 @@ namespace cerberus::kinect {
         }
     };
 
-} // namespace cerberus::kinect
+} // namespace cerberus::cameras::kinect
 
 #endif //__CERBERUS_KINECT_H_
