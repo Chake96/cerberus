@@ -25,7 +25,12 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/imgproc.hpp>
-#include <opencv2/objdetect.hpp>
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#include <spdlog/async.h>
+#include <spdlog/logger.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/systemd_sink.h>
+#include <spdlog/spdlog.h>
 
 namespace cerberus::cameras::kinect {
 
@@ -114,8 +119,11 @@ namespace cerberus::cameras::kinect {
 
         Kinect(int id, std::function<void(cv::Mat)> video_cb, std::function<void(cv::Mat)> depth_cb) : kID(id) {
             //init context
-            if (freenect_init(&_fn_cntx, nullptr) < 0)
+            _file_logger->info(fmt::format("Starting Kinect{{0}}", kID));
+            if (freenect_init(&_fn_cntx, nullptr) < 0) {
+                _file_logger->error("Cannot initialize freenect library");
                 throw std::runtime_error("Cannot initialize freenect library");
+            }
             // We claim both the motor and camera devices, since this class exposes both.
             // It does not support audio, so we do not claim it.
             freenect_set_log_level(_fn_cntx, freenect_loglevel::FREENECT_LOG_ERROR);
@@ -188,6 +196,14 @@ namespace cerberus::cameras::kinect {
 
         DeviceType* _dev{nullptr};
         Freenect::Freenect _freenect;
+
+        //loggers
+        const std::string _kfile_logger_name{"kinect_file_logger"}, _kconsole_logger_name{"kinect_systemd_logger"};
+        std::shared_ptr<spdlog::logger> _file_logger =
+            spdlog::basic_logger_mt<spdlog::async_factory>(_kfile_logger_name, "logs/kinect.txt");
+
+        std::shared_ptr<spdlog::sinks::systemd_sink_mt> _systemd_sink = std::make_shared<spdlog::sinks::systemd_sink_mt>();
+        spdlog::logger _systemd_logger{_kconsole_logger_name, _systemd_sink};
 
       private: //funcs
         void _update_task() {

@@ -13,9 +13,10 @@
 
 //cerberus
 // #include <cerberus.h>
+#include <CLI/CLI.hpp>
 #include <cerberus/terminal/menu.h>
-
-namespace po = boost::program_options;
+#include <spdlog/async.h>
+#include <spdlog/spdlog.h>
 
 volatile bool running = true;
 void signalHandler([[maybe_unused]] int signal) {
@@ -25,32 +26,24 @@ void signalHandler([[maybe_unused]] int signal) {
 namespace ctm = cerberus::terminal;
 int main(int argc, const char* argv[]) {
 
-    //TODO: remove linux based signal handling
-    std::signal(SIGINT, signalHandler);
-    std::signal(SIGTERM, signalHandler);
-    std::signal(SIGQUIT, signalHandler);
-
-    po::options_description descript("Allowed Options");
-    descript.add_options()("help", "show the help message")("tui", "use the Commandline Control Interface")(
-        "TODO Kinect Options",
-        /**/ "TODO");
-    po::variables_map inputs;
-    po::store(po::parse_command_line(argc, argv, descript), inputs);
-    po::notify(inputs);
-
-    if (inputs.count("help") > 0) {
-        std::cout << descript << '\n';
-        return 1;
-    }
+    //setup SPD Log
+    static size_t thrd_q_sz{8192};
+    static size_t num_log_thrds{1};
+    spdlog::init_thread_pool(thrd_q_sz, num_log_thrds); //TODO benchmark this initalizer with various parameters
+    // spdlog::set_pattern("[source %s] [function %!] [line %#] %v"); TODO: figure out how to get fine grain file detail into log
 
     ctm::TerminalMenu tm{};
 
-    if (inputs.count("tui") > 0) {
+    static const auto kLaunchTui = [&tm]([[maybe_unused]] size_t call_count) {
         tm.launch(ctm::TerminalMenu::types::TUI);
-    }
+    };
 
-    // if(inputs.count){ whatever options
-    // }
-    //check if user requested cmdline mode
+    CLI::App cmd_line{"Cerberus Daemon"};
+    cmd_line.add_flag("--tui", kLaunchTui, "use the TUI Commandline Control Interface");
+    cmd_line.add_flag("--headless, --nohead", "launch the daemon in headless server mode, use ./cerberus -h to learn more");
+    CLI11_PARSE(cmd_line, argc, argv);
+
+    //cleanup logger globally
+    spdlog::shutdown();
     return EXIT_SUCCESS;
 }

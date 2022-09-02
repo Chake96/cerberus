@@ -11,6 +11,8 @@ conan_basic_setup()
 
 #3rd Party Setup
 
+
+##Kinect360 lib
 find_package(libfreenect)
 
 #Intel TBB Threading
@@ -30,7 +32,7 @@ include(GoogleTest)
 find_package(absl REQUIRED)
 
 ##Boost
-find_package(Boost COMPONENTS program_options REQUIRED)
+find_package(Boost REQUIRED)
 set(Boost_USE_STATIC_LIBS ON)
 
 ##SI - Standard Units
@@ -50,6 +52,16 @@ include_directories(${LIBUSB_1_INCLUDE_DIRS})
 if(NOT TARGET spdlog)
     # Stand-alone build
     find_package(spdlog REQUIRED)
+    find_package(PkgConfig)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(systemd libsystemd) #for systemd log sink
+    endif()
+endif()
+
+#SPDLog
+if(NOT TARGET CLI11)
+    # Stand-alone build
+    find_package(CLI11 REQUIRED)
 endif()
 
 # --------------------
@@ -57,7 +69,6 @@ endif()
 
 ##FreeNect
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/conan_toolchain.cmake" CACHE STRING "")
-message(STATUS "FUCK: ${CMAKE_TOOLCHAIN_FILE}")
 
 ##FTXUI
 find_package(ftxui)
@@ -88,7 +99,7 @@ target_include_directories(${PROJECT_NAME}  PRIVATE ${OpenCV_INCLUDE_DIRS} )
 target_link_libraries(${PROJECT_NAME} 
                         PUBLIC 
                             absl::absl
-                            Boost::headers Boost::program_options
+                            Boost::headers
                             ${OpenCV_LIBS} 
                             freenect
                             ftxui::screen ftxui::dom ftxui::component
@@ -96,6 +107,8 @@ target_link_libraries(${PROJECT_NAME}
                             SI::SI
                         PRIVATE
                             spdlog::spdlog
+                            CLI11::CLI11
+                            ${systemd_LIBRARIES}
 )  
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20 PRIVATE ${TBB_CXX_STD_FLAG})

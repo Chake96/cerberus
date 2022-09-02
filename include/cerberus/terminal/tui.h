@@ -17,6 +17,7 @@
 #include <boost/lockfree/spsc_queue.hpp>
 #include <cerberus/cameras/kinect/kinect.h>
 #include <cerberus/terminal/base_menu.h>
+#include <fmt/core.h>
 #include <ftxui/component/captured_mouse.hpp> // for ftxui
 #include <ftxui/component/component.hpp>      // for CatchEvent, Renderer
 #include <ftxui/component/component_base.hpp>
@@ -84,7 +85,9 @@ namespace cerberus::terminal {
                 _renderer = _rgb_stream_renderer(screen);
             } else {
                 // TODO: log error
-                throw std::runtime_error(absl::StrFormat("Failed to initalize Submenu with Path: %s", path));
+                // _file_logger->lo throw std::runtime_error(absl::StrFormat("Failed to initalize Submenu with Path: %s", path));
+                _systemd_logger.error(fmt::format("Invalid String path Given to TUI submenu:{}", path));
+                _file_logger->error(fmt::format("Invalid String path Given to TUI submenu:{}", path));
             }
 
             screen.Loop(_renderer);
@@ -95,6 +98,7 @@ namespace cerberus::terminal {
 
         ftxui::Component _main_menu = ftxui::Container::Vertical({
             ftxui::Button("Quit", _screen.ExitLoopClosure()),
+            ftxui::Button("1. bad menu controls", [this] { _submenu("bad menu path"); }),
             ftxui::Button("1. Keyboard Controls", [this] { _submenu(tui::paths::keyboard); }),
             ftxui::Button("2. View Terminal RGB Stream", [this] { _submenu(tui::paths::rgb_stream); }),
             ftxui::Button("3. Show Stream",
