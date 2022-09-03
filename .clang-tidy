@@ -89,11 +89,11 @@ CheckOptions:
   - { key: readability-identifier-naming.ProtectedMethodPrefix,  value: _           }
   - { key: readability-identifier-naming.PrivateMethodPrefix,    value: _           }
   - { key: readability-identifier-naming.EnumConstantCase,       value: UPPER_CASE  }
-  - { key: readability-identifier-naming.ConstexprVariableCase,  value: lower_case  }
-  - { key: readability-identifier-naming.GlobalConstantCase,     value: CamelCase   }
-  - { key: readability-identifier-naming.GlobalConstantPrefix,   value: k           }
+  - { key: readability-identifier-naming.ConstexprVariableCase,  value: aNy_CasE  }
   - { key: readability-identifier-naming.MemberConstantCase,     value: sNake_case  }
   - { key: readability-identifier-naming.MemberConstantPrefix,   value: k           }
+  - { key: readability-identifier-naming.GlobalConstantCase,     value: CamelCase   }
+  - { key: readability-identifier-naming.GlobalConstantPrefix,   value: k           }
   - { key: readability-identifier-naming.StaticConstantCase,     value: CamelCase   }
   - { key: readability-identifier-naming.StaticConstantPrefix,   value: k           }
   - { key: readability-function-cognitive-complexity.Threshold,  value: 40          }

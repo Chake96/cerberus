@@ -81,51 +81,45 @@ Standard: c++17
 TabWidth: 4
 UseTab: Never
 
-# IncludeCategories:
-#   - Regex:           '<[[:alnum:].]+>'
-#     Priority:        2
-#     SortPriority:    1
-#   - Regex:           '.*'
-#     Priority:        1
-#     SortPriority:    0
-#   - Regex:           '<(catch2|boost)\/'
-#     Priority:        3
-#     SortPriority:    2
-#   - Regex:           '<(SI)\/'
-#     Priority:        3
-#   - Regex:           '<(absl|google|Google|gtest|gmock)\/'
-#     Priority:        2
-#     SortPriority:    1
-#   - Regex:           '<(ftxui)\/'
-#     Priority:        4
-#     SortPriority:    2
-#   - Regex:    '^"(cerberus|terminal)'
-#     Priority: 1
-#     SortPriority:    1
 
 IncludeCategories:
   # C system headers.  The header_dependency_test.py contains a copy of this
   # list; be sure to update that test anytime this list changes.
   - Regex:    '^[<"](aio|arpa/inet|assert|complex|cpio|ctype|curses|dirent|dlfcn|errno|fcntl|fenv|float|fmtmsg|fnmatch|ftw|glob|grp|iconv|inttypes|iso646|langinfo|libgen|limits|locale|math|monetary|mqueue|ndbm|netdb|net/if|netinet/in|netinet/tcp|nl_types|poll|pthread|pwd|regex|sched|search|semaphore|setjmp|signal|spawn|stdalign|stdarg|stdatomic|stdbool|stddef|stdint|stdio|stdlib|stdnoreturn|string|strings|stropts|sys/ipc|syslog|sys/mman|sys/msg|sys/resource|sys/select|sys/sem|sys/shm|sys/socket|sys/stat|sys/statvfs|sys/time|sys/times|sys/types|sys/uio|sys/un|sys/utsname|sys/wait|tar|term|termios|tgmath|threads|time|trace|uchar|ulimit|uncntrl|unistd|utime|utmpx|wchar|wctype|wordexp)\.h[">]$'
-    Priority: 20
+    Priority: 2
   # C++ system headers (as of C++17).  The header_dependency_test.py contains a
   # copy of this list; be sure to update that test anytime this list changes.
   - Regex:    '^[<"](algorithm|any|array|atomic|bitset|cassert|ccomplex|cctype|cerrno|cfenv|cfloat|charconv|chrono|cinttypes|ciso646|climits|clocale|cmath|codecvt|complex|condition_variable|csetjmp|csignal|cstdalign|cstdarg|cstdbool|cstddef|cstdint|cstdio|cstdlib|cstring|ctgmath|ctime|cuchar|cwchar|cwctype|deque|exception|execution|filesystem|forward_list|fstream|functional|future|initializer_list|iomanip|ios|iosfwd|iostream|istream|iterator|limits|list|locale|map|memory|memory_resource|mutex|new|numeric|optional|ostream|queue|random|ratio|regex|scoped_allocator|set|shared_mutex|sstream|stack|stdexcept|streambuf|string|string_view|strstream|system_error|thread|tuple|type_traits|typeindex|typeinfo|unordered_map|unordered_set|utility|valarray|variant|vector)[">]$'
-    Priority: 30
-  # Other libraries' h files (with angles).
-  - Regex:    '^<'
-    Priority: 40
-  # Other libraries' h files (with quotes).
-  - Regex:    '^"'
-    Priority: 40
+    Priority: 3
+  # Cerberus libraries' h files (with angles).
   - Regex:           '^((<|")(cerberus)/)'
     Priority:        1
-    SortPriority:    1
     CaseSensitive:   true
+  #Absl
+  - Regex:           '^((<|")(absl)/)'
+    Priority:        38 
+  #Boost
+  - Regex:           '^((<|")(boost)/)'
+    Priority:        39
+  #Gtest
   - Regex:           '^((<|")(gtest|gmock|isl|json)/)'
-    Priority:        3
-  - Regex:           '<[[:alnum:].]+>'
-    Priority:        4
-  - Regex:           '.*'
-    Priority:        2
-    SortPriority:    0
+    Priority:        40
+  # FTXUI libraries' h files (with angles).
+  - Regex:           '^((<|")(fmt)/)'
+    Priority:        41
+  # FTXUI libraries' h files (with angles).
+  - Regex:           '^((<|")(ftxui)/)'
+    Priority:        42
+  # OpenCV libraries' h files (with angles).
+  - Regex:           '^((<|")(opencv)/)'
+    Priority:        43
+  # OneTBB libraries' h files (with angles).
+  - Regex:           '^((<|")(oneapi)/)'
+    Priority:        44
+  # Other libraries' h files (with angles).
+  - Regex:    '^<'
+    Priority: 4
+  # Other libraries' h files (with quotes).
+  - Regex:    '^"'
+    Priority: 5
+

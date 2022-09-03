@@ -1,49 +1,47 @@
 //stl
+
 #include <csignal>
 #include <iostream>
 #include <vector>
 
-//boost
-#include <boost/program_options.hpp>
-
-//ftxui
-#include <ftxui/component/component.hpp>
-#include <ftxui/dom/elements.hpp>
-#include <ftxui/screen/screen.hpp>
-
 //cerberus
-// #include <cerberus.h>
+#include <cerberus/cerberus.h>
+
 #include <CLI/CLI.hpp>
-#include <cerberus/terminal/menu.h>
-#include <spdlog/async.h>
-#include <spdlog/spdlog.h>
 
 volatile bool running = true;
 void signalHandler([[maybe_unused]] int signal) {
     running = false;
 }
 
-namespace ctm = cerberus::terminal;
 int main(int argc, const char* argv[]) {
+    using TerminalMenuTypes = cerberus::terminal::TerminalMenu::types;
 
+    //TODO benchmark this initalizer with various parameters
     //setup SPD Log
-    static size_t thrd_q_sz{8192};
-    static size_t num_log_thrds{1};
-    spdlog::init_thread_pool(thrd_q_sz, num_log_thrds); //TODO benchmark this initalizer with various parameters
-    // spdlog::set_pattern("[source %s] [function %!] [line %#] %v"); TODO: figure out how to get fine grain file detail into log
-
-    ctm::TerminalMenu tm{};
-
-    static const auto kLaunchTui = [&tm]([[maybe_unused]] size_t call_count) {
-        tm.launch(ctm::TerminalMenu::types::TUI);
-    };
-
+    cerberus::ctor_args::SPDLOGArgs spd_args{.thread_queue_size = 8192, .thread_count = 1};
+    bool launch_tui{false}, launch_gui{false}, launch_cmdline{false}; //NOLINT
     CLI::App cmd_line{"Cerberus Daemon"};
-    cmd_line.add_flag("--tui", kLaunchTui, "use the TUI Commandline Control Interface");
-    cmd_line.add_flag("--headless, --nohead", "launch the daemon in headless server mode, use ./cerberus -h to learn more");
+    cmd_line.add_flag("--tui", launch_tui, "use the TUI Commandline Control Interface");
+    cmd_line.add_flag("--gui", launch_gui, "use the GUI to control cerberus");
+    cmd_line.add_flag("--cmdline, -cl", launch_cmdline, "use cerberus and control it with a plain terminal");
+    // cmd_line.add_flag("--headless, --nohead", "launch the daemon in headless server mode, use ./cerberus -h to learn more");
     CLI11_PARSE(cmd_line, argc, argv);
 
+    cerberus::CerberusDaemon daemon(spd_args);
+    absl::Status daemon_status;
+    if (launch_tui) {
+        daemon_status = daemon.start<TerminalMenuTypes::TUI>();
+    } else if (launch_gui) {
+        daemon_status = daemon.start<TerminalMenuTypes::GUI>();
+    } else if (launch_cmdline) {
+        daemon_status = daemon.start<TerminalMenuTypes::CMDLINE>();
+    } else { //headless
+    }
+    if (!daemon_status.ok()) {
+        std::cerr << fmt::format("Failed to Start TUI Terminal. Returned with Value: {}", daemon_status.message());
+    }
+
     //cleanup logger globally
-    spdlog::shutdown();
     return EXIT_SUCCESS;
 }

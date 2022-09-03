@@ -25,7 +25,6 @@
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/types.hpp>
 #include <opencv2/imgproc.hpp>
-#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #include <spdlog/async.h>
 #include <spdlog/logger.h>
 #include <spdlog/sinks/basic_file_sink.h>

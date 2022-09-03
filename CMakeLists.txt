@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 3.15)
 project(cerberus CXX)
 
 
-
-
 #conan stuff
 include(${CMAKE_CURRENT_BINARY_DIR}/conan_paths.cmake) #adds paths for dependencies
 include(${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake)
 conan_basic_setup()
+
+
 
 #3rd Party Setup
 
@@ -82,6 +82,11 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE BOOL true)
 endif()
 
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 #Cerberus
 
 ##cerberus terminal files
@@ -91,9 +96,11 @@ file(GLOB terminal_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/terminal/*.cpp
 file(GLOB camera_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cameras/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cameras/*.c")
 
 
-add_executable(${PROJECT_NAME} ${terminal_srcs} ${camera_srcs} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp )
-target_include_directories(${PROJECT_NAME}  PUBLIC include/ ${Boost_INCLUDE_DIRS})
-target_include_directories(${PROJECT_NAME}  PRIVATE ${OpenCV_INCLUDE_DIRS} )
+add_executable(${PROJECT_NAME} ${terminal_srcs} ${camera_srcs} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cerberus.cpp )
+target_include_directories(${PROJECT_NAME}  PUBLIC 
+                                                include/ ${Boost_INCLUDE_DIRS}
+                                            PRIVATE 
+                                                ${OpenCV_INCLUDE_DIRS} )
 
 
 target_link_libraries(${PROJECT_NAME} 
@@ -135,8 +142,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libfreenect/cmak
 
 #Testing
 # find_package(libusb-1.0 REQUIRED)
-add_executable(basic_test testing/test.cpp)
-target_link_libraries(basic_test GTest::gtest GTest::gtest_main)
-add_executable(opencv_ex testing/opencv.cpp)
-target_link_libraries(opencv_ex PUBLIC freenect ${OpenCV_LIBS})
-target_include_directories(opencv_ex PUBLIC ${LIBUSB_1_INCLUDE_DIRS} ${OpenCV_LIBS} )
+# add_executable(basic_test testing/test.cpp)
+# target_link_libraries(basic_test GTest::gtest GTest::gtest_main)
+# add_executable(opencv_ex testing/opencv.cpp)
+# target_link_libraries(opencv_ex PUBLIC freenect ${OpenCV_LIBS})
+# target_include_directories(opencv_ex PUBLIC ${LIBUSB_1_INCLUDE_DIRS} ${OpenCV_LIBS} )
