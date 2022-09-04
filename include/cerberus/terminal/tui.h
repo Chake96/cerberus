@@ -79,7 +79,7 @@ namespace cerberus::terminal {
                 // TODO: log error
                 // _file_logger->lo throw std::runtime_error(absl::StrFormat("Failed to
                 // initalize Submenu with Path: %s", path));
-                _systemd_logger.error(fmt::format("Invalid String path Given to TUI submenu:{}", path));
+                _systemd_logger->error(fmt::format("Invalid String path Given to TUI submenu:{}", path));
                 _file_logger->error(fmt::format("Invalid String path Given to TUI submenu:{}", path));
             }
 

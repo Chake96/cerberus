@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include <absl/status/status.h>
+
 namespace cerberus {
     namespace ctor_args {
         struct SPDLOGArgs {

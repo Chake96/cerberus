@@ -17,9 +17,6 @@
 #include <SI/angle.h>
 #include <SI/area.h>
 #include <SI/mass.h>
-#include <absl/strings/str_format.h>
-#include <boost/signals2.hpp>
-#include <boost/signals2/connection.hpp>
 #include <libfreenect/libfreenect.h>
 #include <libfreenect/libfreenect.hpp>
 #include <opencv2/core/mat.hpp>
@@ -30,6 +27,11 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/systemd_sink.h>
 #include <spdlog/spdlog.h>
+
+#include <absl/strings/str_format.h>
+
+#include <boost/signals2.hpp>
+#include <boost/signals2/connection.hpp>
 
 namespace cerberus::cameras::kinect {
 
@@ -63,8 +65,11 @@ namespace cerberus::cameras::kinect {
             auto* rgb_data = static_cast<uint8_t*>(video);
             std::copy(rgb_data, rgb_data + getVideoBufferSize(), _rgb_buffer.begin());
             rgb.data = rgb_data;
-            cv::cvtColor(rgb, rgb,
-                         cv::COLOR_RGB2BGR); //TODO: review if this conversion is necessary based on Kinect's ordering of RGB stream
+            cv::cvtColor(
+                rgb,
+                rgb,
+                cv::COLOR_RGB2BGR
+            ); //TODO: review if this conversion is necessary based on Kinect's ordering of RGB stream
             _video_signal(std::move(rgb));
         }
 
@@ -127,7 +132,8 @@ namespace cerberus::cameras::kinect {
             // It does not support audio, so we do not claim it.
             freenect_set_log_level(_fn_cntx, freenect_loglevel::FREENECT_LOG_ERROR);
             freenect_select_subdevices(
-                _fn_cntx, static_cast<freenect_device_flags>(FREENECT_DEVICE_MOTOR | FREENECT_DEVICE_CAMERA | FREENECT_DEVICE_AUDIO));
+                _fn_cntx, static_cast<freenect_device_flags>(FREENECT_DEVICE_MOTOR | FREENECT_DEVICE_CAMERA | FREENECT_DEVICE_AUDIO)
+            );
             int num_devices = freenect_num_devices(_fn_cntx);
             //init underlying device
             // _dev = std::make_unique<DeviceType>(_fn_cntx, kID);

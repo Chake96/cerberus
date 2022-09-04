@@ -1,13 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 project(cerberus CXX)
 
-
 #conan stuff
-include(${CMAKE_CURRENT_BINARY_DIR}/conan_paths.cmake) #adds paths for dependencies
-include(${CMAKE_CURRENT_BINARY_DIR}/conanbuildinfo.cmake)
-conan_basic_setup()
-
-
+# conan_basic_setup()
+# set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake" CACHE STRING "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
+set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
 
 #3rd Party Setup
 
@@ -27,7 +25,6 @@ set(WITH_TBB ON)
 enable_testing()
 find_package(GTest)
 include(GoogleTest)
-
 
 find_package(absl REQUIRED)
 
@@ -51,7 +48,7 @@ include_directories(${LIBUSB_1_INCLUDE_DIRS})
 #SPDLog
 if(NOT TARGET spdlog)
     # Stand-alone build
-    find_package(spdlog REQUIRED)
+    find_package(spdlog CONFIG REQUIRED)
     find_package(PkgConfig)
     if(PkgConfig_FOUND)
         pkg_check_modules(systemd libsystemd) #for systemd log sink
@@ -64,11 +61,6 @@ if(NOT TARGET CLI11)
     find_package(CLI11 REQUIRED)
 endif()
 
-# --------------------
-
-
-##FreeNect
-set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/conan_toolchain.cmake" CACHE STRING "")
 
 ##FTXUI
 find_package(ftxui)
@@ -83,11 +75,11 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 
+
+#Cerberus
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-#Cerberus
 
 ##cerberus terminal files
 file(GLOB terminal_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/terminal/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/terminal/*.c")
@@ -105,7 +97,11 @@ target_include_directories(${PROJECT_NAME}  PUBLIC
 
 target_link_libraries(${PROJECT_NAME} 
                         PUBLIC 
-                            absl::absl
+                            absl::base
+                            absl::strings
+                            absl::str_format
+                            absl::utility
+                            absl::status
                             Boost::headers
                             ${OpenCV_LIBS} 
                             freenect

@@ -24,7 +24,7 @@ int main(int argc, const char* argv[]) {
     CLI::App cmd_line{"Cerberus Daemon"};
     cmd_line.add_flag("--tui", launch_tui, "use the TUI Commandline Control Interface");
     cmd_line.add_flag("--gui", launch_gui, "use the GUI to control cerberus");
-    cmd_line.add_flag("--cmdline, -cl", launch_cmdline, "use cerberus and control it with a plain terminal");
+    cmd_line.add_flag("--cmdline, --cl", launch_cmdline, "use cerberus and control it with a plain terminal");
     // cmd_line.add_flag("--headless, --nohead", "launch the daemon in headless server mode, use ./cerberus -h to learn more");
     CLI11_PARSE(cmd_line, argc, argv);
 

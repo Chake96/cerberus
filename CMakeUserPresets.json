@@ -1,0 +1,9 @@
+{
+    "version": 4,
+    "vendor": {
+        "conan": {}
+    },
+    "include": [
+        "/home/carson/code/cerberus/build/generators/CMakePresets.json"
+    ]
+}
