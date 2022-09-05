@@ -7,7 +7,9 @@
 #include <thread>
 
 #include <absl/strings/str_format.h>
+
 #include <boost/asio/thread_pool.hpp>
+
 #include <oneapi/tbb.h>
 
 namespace cerberus::utilities::threads {
@@ -34,14 +36,15 @@ namespace cerberus::utilities::threads {
                     //TODO: log (absl::StrFormat("Number of Threads exceeds the number of reasonable pools, treating this Pool as the only pool"))
                 } else {
                     throw std::runtime_error(absl::StrFormat(
-                        "Thread Pool with ID {%i} exceeds the reasonable number of pools for the devices single thread\n", class_count));
+                        "Thread Pool with ID {%i} exceeds the expected number of pools for the hardware's single thread\n", class_count
+                    ));
                 }
             }
         }
 
-        void post_asio() {}
+        void enqueue_asio() {}
 
-        void post() {}
+        void enqueue() {}
 
       private: //vars
         inline static std::atomic_size_t class_count{0};

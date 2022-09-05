@@ -3,9 +3,9 @@ project(cerberus CXX)
 
 #conan stuff
 # conan_basic_setup()
-# set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake" CACHE STRING "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake")
-set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
-set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake" CACHE STRING "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake")
+# set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
+# set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
 
 #3rd Party Setup
 
@@ -33,7 +33,7 @@ find_package(Boost REQUIRED)
 set(Boost_USE_STATIC_LIBS ON)
 
 ##SI - Standard Units
-find_package(si REQUIRED)
+find_package(mp-units REQUIRED)
 
 ##Lib USB
 # find_package(libusb-1.0 REQUIRED)
@@ -71,8 +71,8 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
     set(Boost_DEBUG on)
 
     #Linting and Tooling Setup
-    set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE BOOL true)
 endif()
+set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE BOOL true)
 
 
 
@@ -107,7 +107,7 @@ target_link_libraries(${PROJECT_NAME}
                             freenect
                             ftxui::screen ftxui::dom ftxui::component
                             TBB::tbb
-                            SI::SI
+                            mp-units::mp-units
                         PRIVATE
                             spdlog::spdlog
                             CLI11::CLI11

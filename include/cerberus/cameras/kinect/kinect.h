@@ -14,9 +14,6 @@
 #include <thread>
 #include <type_traits>
 
-#include <SI/angle.h>
-#include <SI/area.h>
-#include <SI/mass.h>
 #include <libfreenect/libfreenect.h>
 #include <libfreenect/libfreenect.hpp>
 #include <opencv2/core/mat.hpp>
@@ -27,6 +24,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/systemd_sink.h>
 #include <spdlog/spdlog.h>
+#include <units/generic/angle.h>
 
 #include <absl/strings/str_format.h>
 
@@ -35,7 +33,6 @@
 
 namespace cerberus::cameras::kinect {
 
-    const SI::kilo_gram_t<long double> kg{0}; //NOLINT
     namespace units {
         enum class eLEDColors { OFF = 0, GREEN, RED, YELLOW, BLINK_GREEN, BLINK_R_Y };
         namespace tilt_properties {
@@ -49,7 +46,7 @@ namespace cerberus::cameras::kinect {
             static constexpr int stream_width{640}, stream_height{480};
         }
 
-        using Degrees = SI::degree_t<double>;
+        using Degrees = units::isq::si::degree;
     } // namespace units
 
     class CVNect : public Freenect::FreenectDevice {
@@ -146,7 +143,7 @@ namespace cerberus::cameras::kinect {
             _dev->register_depth_signal(depth_cb);
             _dev_update_thrd = std::jthread(&Kinect::_update_task, this);
             _dev_update_thrd.detach();
-            this->set_tilt(SI::degree_t<double>{units::tilt_properties::init_tilt});
+            this->set_tilt(units::degree{units::tilt_properties::init_tilt});
             //cameras
             _dev->startVideo();
             // _dev->startDepth();
@@ -158,7 +155,7 @@ namespace cerberus::cameras::kinect {
             return _state;
         }
 
-        void set_tilt(const SI::degree_t<double>& deg) {
+        void set_tilt(const units::degree& deg) {
             _state.cmded_angle = deg;
             _dev->setTiltDegrees(deg.value());
         }

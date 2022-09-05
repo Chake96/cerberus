@@ -17,8 +17,6 @@
 #include <tuple>
 #include <vector>
 
-#include <SI/angle.h>
-
 #include <absl/strings/str_format.h>
 
 #include <boost/lockfree/policies.hpp>
