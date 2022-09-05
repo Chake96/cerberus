@@ -1,5 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import CMakeDeps, cmake_layout, CMakeToolchain, CMake
+from conans import tools
 
 class CerberusPkg(ConanFile):
     settings = "os", "compiler", "build_type", "arch", "cppstd"
@@ -19,12 +20,3 @@ class CerberusPkg(ConanFile):
         cmake = CMake(self)
         cmake.configure()
         cmake.build()
-
-
-    # def generate(self):
-    #     deps = CMakeDeps(self)
-    #     # By default, ``deps.configuration`` will be ``self.settings.build_type``
-    #     if self.options["hello"].shared:
-    #         # Assuming the current project ``CMakeLists.txt`` defines the ReleasedShared configuration.
-    #         deps.configuration = "ReleaseShared"
-    #     deps.generate()
