@@ -1,8 +1,8 @@
 #ifndef __CERBERUS_TERMINAL_TUI_KINECT_H_
 #define __CERBERUS_TERMINAL_TUI_KINECT_H_
 
-#include "cerberus/cameras/kinect/kinect.h"
-#include "cerberus/terminal/base_menu.h"
+#include <cerberus/cameras/kinect/kinect.h>
+#include <cerberus/terminal/base_menu.h>
 
 #include <string_view>
 
@@ -477,7 +477,7 @@ namespace cerberus::terminal {
                                 case 's': {
                                     double dif = (fast_rate) ? cameras::kinect::units::tilt_properties::fast_step
                                                              : cameras::kinect::units::tilt_properties::slow_step;
-                                    auto new_ang = cameras::kinect::units::Degrees{new_state.cmded_angle.value() - dif};
+                                    auto new_ang = units::si::Degrees{new_state.cmded_angle.value() - dif};
                                     _kin->set_tilt(new_ang);
                                     break;
                                 }
@@ -487,7 +487,7 @@ namespace cerberus::terminal {
                                 case 'w': {
                                     double dif = (fast_rate) ? cameras::kinect::units::tilt_properties::fast_step
                                                              : cameras::kinect::units::tilt_properties::slow_step;
-                                    auto new_ang = cameras::kinect::units::Degrees{new_state.cmded_angle.value() + dif};
+                                    auto new_ang = units::si::Degrees{new_state.cmded_angle.value() + dif};
                                     _kin->set_tilt(new_ang);
                                 } break;
                                 case 'C':
@@ -501,7 +501,7 @@ namespace cerberus::terminal {
                                 case 'R':
                                     [[fallthrough]];
                                 case 'r': {
-                                    _kin->set_tilt(cameras::kinect::units::Degrees{0.0});
+                                    _kin->set_tilt(units::si::Degrees{0.0});
                                 }
                                 default:
                                     break;

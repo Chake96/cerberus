@@ -8,8 +8,9 @@ namespace cerberus {
     using namespace ctor_args;          //NOLINT
     using namespace cerberus::terminal; //NOLINT
 
-    CerberusDaemon::CerberusDaemon(const SPDLOGArgs& spd) {
+    CerberusDaemon::CerberusDaemon(const SPDLOGArgs& spd) : _cam_mgr(_thread_pool) {
         spdlog::init_thread_pool(spd.thread_queue_size, spd.thread_count);
+
         // spdlog::set_pattern("[source %s] [function %!] [line %#] %v"); TODO: figure out how to get fine grain file detail into log
     }
 

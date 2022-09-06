@@ -8,6 +8,7 @@
 
 #include <absl/strings/str_format.h>
 
+#include <boost/asio.hpp>
 #include <boost/asio/thread_pool.hpp>
 
 #include <oneapi/tbb.h>
@@ -18,8 +19,8 @@ namespace cerberus::utilities::threads {
 
       public:
         struct PoolRatios {
-            const float tasks;
-            const float asio;
+            const double tasks;
+            const double asio;
         };
 
         const PoolRatios internal_pool_ratios;
@@ -42,9 +43,15 @@ namespace cerberus::utilities::threads {
             }
         }
 
-        void enqueue_asio() {}
+        template <class Func>
+        void enqueue_asio(const Func& f) {
+            boost::asio::post(_asio_pool, f);
+        }
 
-        void enqueue() {}
+        template <class Func>
+        void enqueue(const Func& f) {
+            _tbb_pool.run(f);
+        }
 
       private: //vars
         inline static std::atomic_size_t class_count{0};
@@ -52,7 +59,7 @@ namespace cerberus::utilities::threads {
 
         oneapi::tbb::task_group_context _context[2];
         oneapi::tbb::task_arena _arenas[2];
-        oneapi::tbb::task_group _groups[2];
+        oneapi::tbb::task_group _tbb_pool;
 
       private: //funcs
         static boost::asio::thread_pool _init_asio_pool(size_t num_pools, const PoolRatios& ratios) {

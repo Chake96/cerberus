@@ -1,9 +1,13 @@
 #ifndef __CERBERUS_CERBERUS_H_
 #define __CERBERUS_CERBERUS_H_
 
+#include "cerberus/cameras/manager.h"
 #include <cerberus/terminal/menu.h>
+#include <cerberus/utilities/thread_pool.h>
 
 #include <type_traits>
+
+#include <spdlog/common.h>
 
 #include <absl/status/status.h>
 
@@ -11,6 +15,7 @@ namespace cerberus {
     namespace ctor_args {
         struct SPDLOGArgs {
             const size_t thread_queue_size, thread_count;
+            const spdlog::level::level_enum log_level{spdlog::level::err};
         };
     } // namespace ctor_args
 
@@ -24,6 +29,9 @@ namespace cerberus {
 
       private: //vars
         cerberus::terminal::TerminalMenu _tm{};
+        utilities::threads::ThreadPool _thread_pool{{}};
+        cameras::CameraManager _cam_mgr;
+
         // const size_t _num_log_thrds, _thrd_q_sz{8192};
     };
 

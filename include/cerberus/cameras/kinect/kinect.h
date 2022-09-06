@@ -1,6 +1,8 @@
 #ifndef __CERBERUS_CAMERAS_KINECT_H_
 #define __CERBERUS_CAMERAS_KINECT_H_
 
+#include <cerberus/utilities/si_units.h>
+
 #include <chrono>
 #include <cstdint>
 #include <functional>
@@ -24,7 +26,6 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/systemd_sink.h>
 #include <spdlog/spdlog.h>
-#include <units/generic/angle.h>
 
 #include <absl/strings/str_format.h>
 
@@ -45,8 +46,6 @@ namespace cerberus::cameras::kinect {
         namespace rgb_properties {
             static constexpr int stream_width{640}, stream_height{480};
         }
-
-        using Degrees = units::isq::si::degree;
     } // namespace units
 
     class CVNect : public Freenect::FreenectDevice {
@@ -98,7 +97,7 @@ namespace cerberus::cameras::kinect {
     class Kinect<DeviceType> final {
       public: //properties and structs
         struct State {
-            SI::degree_t<double> cmded_angle{};
+            cerberus::units::si::Degrees cmded_angle{};
             units::tilt_properties::eStatus tilt_status{units::tilt_properties::eStatus::STOPPED};
             units::eLEDColors led_color{units::eLEDColors::OFF};
         };
@@ -143,7 +142,7 @@ namespace cerberus::cameras::kinect {
             _dev->register_depth_signal(depth_cb);
             _dev_update_thrd = std::jthread(&Kinect::_update_task, this);
             _dev_update_thrd.detach();
-            this->set_tilt(units::degree{units::tilt_properties::init_tilt});
+            this->set_tilt(cerberus::units::si::Degrees{units::tilt_properties::init_tilt});
             //cameras
             _dev->startVideo();
             // _dev->startDepth();
@@ -155,7 +154,7 @@ namespace cerberus::cameras::kinect {
             return _state;
         }
 
-        void set_tilt(const units::degree& deg) {
+        void set_tilt(const cerberus::units::si::Degrees& deg) {
             _state.cmded_angle = deg;
             _dev->setTiltDegrees(deg.value());
         }

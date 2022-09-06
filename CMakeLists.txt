@@ -2,10 +2,9 @@ cmake_minimum_required(VERSION 3.15)
 project(cerberus CXX)
 
 #conan stuff
-# conan_basic_setup()
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake" CACHE STRING "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake")
-# set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
-# set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
+set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
+set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
 
 #3rd Party Setup
 
@@ -33,17 +32,17 @@ find_package(Boost REQUIRED)
 set(Boost_USE_STATIC_LIBS ON)
 
 ##SI - Standard Units
-find_package(mp-units REQUIRED)
+find_package(si REQUIRED)
 
 ##Lib USB
-# find_package(libusb-1.0 REQUIRED)
-find_path(LIBUSB_INCLUDE_DIR
-  NAMES libusb.h
-  PATH_SUFFIXES "include" "libusb" "libusb-1.0")
-find_library(LIBUSB_LIBRARY
-  NAMES usb
-  PATH_SUFFIXES "lib" "lib32" "lib64")
-include_directories(${LIBUSB_1_INCLUDE_DIRS})
+find_package(libusb REQUIRED)
+# find_path(LIBUSB_INCLUDE_DIR
+#   NAMES libusb.h
+#   PATH_SUFFIXES "include" "libusb" "libusb-1.0")
+# find_library(LIBUSB_LIBRARY
+#   NAMES usb
+#   PATH_SUFFIXES "lib" "lib32" "lib64")
+# include_directories(${LIBUSB_1_INCLUDE_DIRS})
 
 #SPDLog
 if(NOT TARGET spdlog)
@@ -92,7 +91,8 @@ add_executable(${PROJECT_NAME} ${terminal_srcs} ${camera_srcs} ${CMAKE_CURRENT_S
 target_include_directories(${PROJECT_NAME}  PUBLIC 
                                                 include/ ${Boost_INCLUDE_DIRS}
                                             PRIVATE 
-                                                ${OpenCV_INCLUDE_DIRS} )
+                                                ${OpenCV_INCLUDE_DIRS} 
+)
 
 
 target_link_libraries(${PROJECT_NAME} 
@@ -107,11 +107,14 @@ target_link_libraries(${PROJECT_NAME}
                             freenect
                             ftxui::screen ftxui::dom ftxui::component
                             TBB::tbb
-                            mp-units::mp-units
                         PRIVATE
+                            SI::SI
                             spdlog::spdlog
                             CLI11::CLI11
                             ${systemd_LIBRARIES}
+                            ${LIBUSB_LIBRARY}
+                            usb-1.0
+                            
 )  
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20 PRIVATE ${TBB_CXX_STD_FLAG})
