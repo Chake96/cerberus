@@ -22,7 +22,7 @@ namespace cerberus::cameras {
             : max_fov(max), min_fov(min), uuid(boost::uuids::random_generator_mt19937()()) {}
         const cerberus::units::si::Degrees max_fov{}, min_fov{};
         const boost::uuids::uuid uuid;
-        const std::string_view model_name;
+        const std::string_view model_name, serial_number;
 
         //Required Operators are Defaulted
         Properties& operator=(Properties&&) = default;

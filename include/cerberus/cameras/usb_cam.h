@@ -15,8 +15,10 @@ namespace cerberus::cameras::usb {
 
     class USBCamera : virtual public cerberus::cameras::Camera {
       public: //methods
+        static constexpr camera_types type{camera_types::USB};
+
         USBCamera() = delete;
-        USBCamera(std::string_view name, std::string_view usb_desc, cameras::codecs codec = codecs::H264_AVC);
+        USBCamera(uint32_t serial_num, std::string_view name, std::string_view usb_desc, cameras::codecs codec = codecs::H264_AVC) {}
 
         absl::Status zoom(units::si::Degrees deg) override {
             absl::Status ret;

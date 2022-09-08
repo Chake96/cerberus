@@ -22,6 +22,15 @@ namespace cerberus::cameras {
 
       public:
         ~CameraManager() {
+            size_t count{0};
+            for (auto* config : _usb_devs.configurations) { //free using libusb
+                try {
+                    libusb_free_config_descriptor(config);
+                } catch (...) {
+                    // _logger->error("failed to Free Config #{}", count);
+                }
+                count += 1;
+            }
             libusb_free_device_list(_usb_devs.devices, static_cast<int>(_usb_devs.device_count));
             libusb_exit(_usb_devs.context);
         }
@@ -29,6 +38,7 @@ namespace cerberus::cameras {
         explicit CameraManager(utilities::threads::ThreadPool& tp) : _tpool(tp) {
 
             _logger = spdlog::basic_logger_mt<spdlog::async_factory>("Camera Manager", "logs/camera_manager.txt");
+            _logger->flush_on(spdlog::level::info);
 
             if (!_logger) {
                 std::cerr << fmt::format(
@@ -39,28 +49,8 @@ namespace cerberus::cameras {
                     _source_loc.function_name()
                 );
             }
-            int result_code{0};
-            result_code = libusb_init(&_usb_devs.context);
-            if (result_code != LIBUSB_SUCCESS) {
-                _logger->error(fmt::format("LibUSB Init Returned Code: {}", result_code));
-            }
-            _usb_devs.device_count = libusb_get_device_list(_usb_devs.context, &_usb_devs.devices);
-            _logger->info("LIB USB libusb_get_device_list states there are {} USB devices", _usb_devs.device_count);
 
-            for (auto dev_count = _usb_devs.device_count - 1; dev_count >= 0; --dev_count) {
-                auto* description = &_usb_devs.descriptions.emplace_back(0);
-                auto* device = _usb_devs.devices[dev_count];
-                result_code = libusb_get_device_descriptor(device, description);
-                if (result_code != LIBUSB_SUCCESS) {
-                    _logger->warn(fmt::format("Getting Device #{0}'s Descriptor Resulted in LIBUSB Error Code: {1}", dev_count, result_code)
-                    );
-                } else {
-                    auto& descript = _usb_devs.descriptions.back();
-                    _logger->debug(
-                        fmt::format("Added USB Device #{0}: Vendor[{1}]:ID[{2}]", dev_count, descript.idVendor, descript.idProduct)
-                    );
-                }
-            }
+            _init_usb_cameras();
             // _tpool.enqueue_asio(const Func& f)
         }
 
@@ -85,12 +75,21 @@ namespace cerberus::cameras {
             ssize_t device_count{0};
             static constexpr size_t max_num_devices{70};
             absl::InlinedVector<libusb_device_descriptor, max_num_devices> descriptions;
+            absl::InlinedVector<libusb_config_descriptor*, max_num_devices> configurations;
         } _usb_devs;
+
+        // absl::InlinedVector<std::shared_ptr<Camera>, 40> _cameras{};
+
         void _enumerate_usb_cams() {}
 
         utilities::threads::ThreadPool& _tpool;
 
         std::set<std::shared_ptr<cerberus::cameras::Camera>, cerberus::cameras::Camera::Comparator> _cameras;
+
+      private:
+        static bool _check_known_usb_cams(libusb_device_descriptor const* description);
+
+        void _init_usb_cameras();
     };
 
 } // namespace cerberus::cameras
