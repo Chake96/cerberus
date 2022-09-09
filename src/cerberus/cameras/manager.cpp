@@ -47,7 +47,7 @@ namespace cerberus::cameras {
         for (auto dev_count = _usb_devs.device_count - 1; dev_count >= 0; --dev_count) {
             auto* description = &_usb_devs.descriptions.emplace_back(0);
             auto* device = _usb_devs.devices[dev_count];
-            //get device descriptors
+            // get device descriptors
             result_code = libusb_get_device_descriptor(device, description);
             if (result_code != LIBUSB_SUCCESS) {
                 _logger->warn(fmt::format("Getting Device #{0}'s Descriptor Resulted in LIBUSB Error Code: {1}", dev_count, result_code));
@@ -70,7 +70,7 @@ namespace cerberus::cameras {
                     );
                     bool is_video_class = (descript.bDeviceClass == LIBUSB_CLASS_VIDEO) || _check_known_usb_cams(&descript);
                     bool class_defined_by_interface =
-                        (descript.bDeviceClass == LIBUSB_CLASS_MISCELLANEOUS) && //defined here: https://www.usb.org/defined-class-codes
+                        (descript.bDeviceClass == LIBUSB_CLASS_MISCELLANEOUS) && // defined here: https://www.usb.org/defined-class-codes
                         (descript.bDeviceSubClass == 0x02) && (descript.bDeviceProtocol == 0x01);
 
                     bool is_video_interface = false;
@@ -110,9 +110,13 @@ namespace cerberus::cameras {
                         int address = libusb_get_device_address(device);
                         int port = libusb_get_port_number(device);
                         _logger->info(fmt::format("Found USB Video Device on Bus {}:{} using Port[{}]", bus, address, port));
-                        //TODO: most recent -- continue adding to camera registry
-                        // auto usb_cam = make_shared<usb::USBCamera>("")
-                        // _cameras.insert()
+                        // TODO: most recent -- continue adding to camera registry
+                        auto usb_cam = std::make_shared<usb::USBCamera>(_usb_devs.context, device, description);
+                        auto started_success = usb_cam->start_video();
+                        if (!started_success.ok()) {
+                            _logger->warn("One of the Manager's USB Cameras failed to start its video");
+                        }
+                        // _cameras.insert(usb_cam);
                     }
                 }
             }
