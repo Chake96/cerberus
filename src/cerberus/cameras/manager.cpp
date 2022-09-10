@@ -1,7 +1,10 @@
-#include "cerberus/cameras/usb_cam.h"
+#include "cerberus/cameras/camera.h"
 #include <cerberus/cameras/manager.h>
+#include <cerberus/cameras/usb_cam.h>
 
 #include <libusb-1.0/libusb.h>
+
+#include "boost/uuid/uuid_io.hpp"
 
 namespace cerberus::cameras {
 
@@ -15,6 +18,39 @@ namespace cerberus::cameras {
         };
 
     } // namespace
+
+    CameraManager::~CameraManager() {
+        size_t count{0};
+        for (auto* config : _usb_devs.configurations) { // free using libusb
+            try {
+                libusb_free_config_descriptor(config);
+            } catch (...) {
+                _logger->debug("failed to Free Config #{}", count);
+            }
+            count += 1;
+        }
+        libusb_free_device_list(_usb_devs.devices, static_cast<int>(_usb_devs.device_count));
+        libusb_exit(_usb_devs.context);
+    }
+
+    CameraManager::CameraManager(utilities::threads::ThreadPool& tp) : _tpool(tp) {
+
+        _logger = spdlog::basic_logger_mt<spdlog::async_factory>("Camera Manager", "logs/camera_manager.txt");
+        _logger->flush_on(spdlog::level::info);
+
+        if (!_logger) {
+            std::cerr << fmt::format(
+                "[{0}(Line {1}:{2}) {3}]: Failed to initalize Logger for CameraManager\n",
+                _source_loc.file_name(),
+                _source_loc.line(),
+                _source_loc.column(),
+                _source_loc.function_name()
+            );
+        }
+
+        _init_usb_cameras();
+        // _tpool.enqueue_asio(const Func& f)
+    }
 
     bool CameraManager::_check_known_usb_cams(libusb_device_descriptor const* description) {
         bool is_usb_cam{false};
@@ -112,9 +148,15 @@ namespace cerberus::cameras {
                         _logger->info(fmt::format("Found USB Video Device on Bus {}:{} using Port[{}]", bus, address, port));
                         // TODO: most recent -- continue adding to camera registry
                         auto usb_cam = std::make_shared<usb::USBCamera>(_usb_devs.context, device, description);
+                        usb_cam->connect_vid_cb([this](const std::vector<uint8_t>& vec) {
+                            _logger->debug("Got USB Packet with Size {}", vec.size());
+                        });
                         auto started_success = usb_cam->start_video();
                         if (!started_success.ok()) {
-                            _logger->warn("One of the Manager's USB Cameras failed to start its video");
+                            _logger->warn(
+                                "Manager's USB Camera [UUID: {}] failed to start its video",
+                                boost::uuids::to_string(usb_cam->properties.uuid)
+                            );
                         }
                         // _cameras.insert(usb_cam);
                     }

@@ -21,38 +21,9 @@ namespace cerberus::cameras {
     class CameraManager {
 
       public:
-        ~CameraManager() {
-            size_t count{0};
-            for (auto* config : _usb_devs.configurations) { //free using libusb
-                try {
-                    libusb_free_config_descriptor(config);
-                } catch (...) {
-                    // _logger->error("failed to Free Config #{}", count);
-                }
-                count += 1;
-            }
-            libusb_free_device_list(_usb_devs.devices, static_cast<int>(_usb_devs.device_count));
-            libusb_exit(_usb_devs.context);
-        }
+        ~CameraManager();
 
-        explicit CameraManager(utilities::threads::ThreadPool& tp) : _tpool(tp) {
-
-            _logger = spdlog::basic_logger_mt<spdlog::async_factory>("Camera Manager", "logs/camera_manager.txt");
-            _logger->flush_on(spdlog::level::info);
-
-            if (!_logger) {
-                std::cerr << fmt::format(
-                    "[{0}(Line {1}:{2}) {3}]: Failed to initalize Logger for CameraManager\n",
-                    _source_loc.file_name(),
-                    _source_loc.line(),
-                    _source_loc.column(),
-                    _source_loc.function_name()
-                );
-            }
-
-            _init_usb_cameras();
-            // _tpool.enqueue_asio(const Func& f)
-        }
+        explicit CameraManager(utilities::threads::ThreadPool& tp);
 
         template <class CameraType>
         enable_if_camera_t<CameraType, std::shared_ptr<CameraType>> get(std::string_view model) {
@@ -64,9 +35,10 @@ namespace cerberus::cameras {
         }
 
       protected:
-        //logging
+        // logging
         std::shared_ptr<spdlog::logger> _logger{nullptr};
-        static constexpr std::source_location _source_loc = std::source_location::current();
+        // your code for which the warning gets suppressed
+        static constexpr std::source_location _source_loc = std::source_location::current(); // NOLINT
 
       private:
         struct USBDevs {

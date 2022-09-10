@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 project(cerberus CXX)
 
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 #conan stuff
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake" CACHE STRING "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake")
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
@@ -36,13 +39,6 @@ find_package(si REQUIRED)
 
 ##Lib USB
 find_package(libusb REQUIRED)
-# find_path(LIBUSB_INCLUDE_DIR
-#   NAMES libusb.h
-#   PATH_SUFFIXES "include" "libusb" "libusb-1.0")
-# find_library(LIBUSB_LIBRARY
-#   NAMES usb
-#   PATH_SUFFIXES "lib" "lib32" "lib64")
-# include_directories(${LIBUSB_1_INCLUDE_DIRS})
 
 #SPDLog
 if(NOT TARGET spdlog)
@@ -71,7 +67,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
 
     #Linting and Tooling Setup
 endif()
-set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE CACHE BOOL true)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 
 
 
@@ -88,7 +84,7 @@ file(GLOB camera_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cameras/*.cpp" "
 
 
 add_executable(${PROJECT_NAME} ${terminal_srcs} ${camera_srcs} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cerberus.cpp )
-target_include_directories(${PROJECT_NAME}  PUBLIC 
+target_include_directories(${PROJECT_NAME} SYSTEM  PUBLIC 
                                                 include/ ${Boost_INCLUDE_DIRS}
                                             PRIVATE 
                                                 ${OpenCV_INCLUDE_DIRS} 
@@ -118,7 +114,7 @@ target_link_libraries(${PROJECT_NAME}
 )  
 
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20 PRIVATE ${TBB_CXX_STD_FLAG})
-target_compile_options(${PROJECT_NAME} PRIVATE -ffast-math)
+target_compile_options(${PROJECT_NAME} PRIVATE -ffast-math -Weffc++)
 
 
 # set_target_properties(cerberus PROPERTIES PUBLIC_HEADER "include/cerberus.h")

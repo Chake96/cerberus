@@ -10,6 +10,7 @@
 #include <utility>
 
 #include <SI/length.h>
+#include <libusb-1.0/libusb.h>
 #include <opencv2/core/mat.hpp>
 #include <spdlog/async.h>
 #include <spdlog/async_logger.h>
@@ -17,7 +18,9 @@
 
 #include <absl/status/status.h>
 
-#include "boost/uuid/random_generator.hpp"
+#include <boost/signals2.hpp>
+#include <boost/signals2/connection.hpp>
+#include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
 #include <boost/uuid/uuid_io.hpp>
@@ -71,7 +74,7 @@ namespace cerberus::cameras {
         Camera(Camera&& other) noexcept = default;
 
         ~Camera() = default;
-        explicit Camera(Properties properties, ) : properties(std::move(properties)) {}
+        explicit Camera(Properties properties) : properties(std::move(properties)) {}
         Camera(cerberus::units::si::Degrees maxfov, cerberus::units::si::Degrees minfov)
             : properties(FOVProperties{.max = maxfov, .min = minfov, .step_size{}}) {
             _logger->flush_on(spdlog::level::level_enum::info);
@@ -96,10 +99,12 @@ namespace cerberus::cameras {
 
       protected:
         // NOLINTBEGIN //TODO: remove when bug in clang-tidy is fixed
-        inline static std::shared_ptr<spdlog::logger> _logger =
+        inline static std::shared_ptr<spdlog::logger> _logger = // NOLINT //TODO: remove once fixed in clang
             spdlog::create_async<spdlog::sinks::basic_file_sink_mt>(std::string{log_name}, std::string{log_file});
         boost::signals2::signal<void(cv::Mat)> _cv_mat_signal;
         // NOLINTEND
+      private:
+        static void _transfer_buf_cb(libusb_transfer* transfer);
     };
 
 } // namespace cerberus::cameras
