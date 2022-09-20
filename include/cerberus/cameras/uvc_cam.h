@@ -80,7 +80,7 @@ namespace cerberus::cameras::uvc {
             if (bgr == nullptr)
                 return;
 
-            if (uvc_any2rgb(frame, bgr) != UVC_SUCCESS) {
+            if (uvc_any2bgr(frame, bgr) != UVC_SUCCESS) {
                 uvc_free_frame(bgr);
                 return;
             }
@@ -90,7 +90,7 @@ namespace cerberus::cameras::uvc {
             std::copy(bytes, bytes + bgr->data_bytes, _data_buf.begin());
             cv::Mat rgb(cv::Size(static_cast<int>(frame->width), static_cast<int>(frame->height)), CV_8UC3, cv::Scalar(0));
             rgb.data = bytes;
-            cv::cvtColor(rgb, rgb, cv::COLOR_RGB2BGR);
+            // cv::cvtColor(rgb, rgb, cv::COLOR_RGB2BGR);
             _cv_mat_signal(std::move(rgb));
         }
         uvc_frame_callback_t* _c_frame_cb{nullptr};

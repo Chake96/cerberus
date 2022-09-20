@@ -242,7 +242,7 @@ namespace cerberus::cameras {
                 return new_cam_found;
             };
 
-            if (try_init_cam_ctx()) {
+            if (try_init_cam_ctx()) { // TODO handle hotplugging usb cams/lost connections, WATCHDOG?
                 _cameras.push_back(std::make_shared<uvc::UVCCamera>(new_cam_ctx));
                 _logger->info("Added new UVC Camera to Registry");
                 wait_delay = 0s; // try and get a new camera immediately

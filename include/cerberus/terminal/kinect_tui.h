@@ -213,7 +213,6 @@ namespace cerberus::terminal {
                         std::vector<cv::Rect> bodies;
 
                         thread_local static auto run_stream = [&] {
-                            namedWindow("Cascade Color Body Tracking");
                             int key_interrupt = pollKey();
                             // Detect faces
                             while (key_interrupt < 0) {
@@ -322,14 +321,12 @@ namespace cerberus::terminal {
                                         2
                                     );
                                     cv::imshow("Pedestrian Tracking", rgb);
-                                    // UP: 1113938
-                                    // DOWN: 1113940
                                     key_interrupt = pollKey();
-                                    if (key_interrupt == 1113938) {
+                                    if (key_interrupt == 1113938 /*UP key*/) {
                                         detection_threshold += .1;
                                         key_interrupt = -1;
                                     }
-                                    if (key_interrupt == 1113940) {
+                                    if (key_interrupt == 1113940 /*DOWN key*/) {
                                         detection_threshold -= 0.05;
                                         key_interrupt = -1;
                                     }
