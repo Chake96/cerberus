@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 3.15)
 project(cerberus CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 #conan stuff
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake" CACHE STRING "${CMAKE_CURRENT_BINARY_DIR}/generators/conan_toolchain.cmake")
 set(CMAKE_MODULE_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_MODULE_PATH})
 set(CMAKE_PREFIX_PATH ${CMAKE_BINARY_DIR}/generators ${CMAKE_PREFIX_PATH})
+set(CONAN_DISABLE_CHECK_COMPILER ON)
+
 
 #3rd Party Setup
 
@@ -40,11 +39,26 @@ find_package(si REQUIRED)
 ##Lib USB
 find_package(libusb REQUIRED)
 
+
+find_package(PkgConfig)
+
+##LIB UCV
+find_package(libuvc COMPONENTS UVC REQUIRED)
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+find_package(Threads REQUIRED)
+add_library(LibUSB::LibUSB ALIAS libusb::libusb) #needed for LIBUVC 
+# if(NOT LIBUVC_FOUND)
+#     message(FATAL_ERROR "FAILED TO FIND LIB UVC")
+# endif()
+# if(PkgConfig_FOUND)
+#     pkg_check_modules(uvc)
+# endif()
+
 #SPDLog
 if(NOT TARGET spdlog)
     # Stand-alone build
     find_package(spdlog CONFIG REQUIRED)
-    find_package(PkgConfig)
     if(PkgConfig_FOUND)
         pkg_check_modules(systemd libsystemd) #for systemd log sink
     endif()
@@ -84,37 +98,38 @@ file(GLOB camera_srcs "${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cameras/*.cpp" "
 
 
 add_executable(${PROJECT_NAME} ${terminal_srcs} ${camera_srcs} ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/driver.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/cerberus/cerberus.cpp )
-target_include_directories(${PROJECT_NAME} SYSTEM  PUBLIC 
-                                                include/ ${Boost_INCLUDE_DIRS}
-                                            PRIVATE 
-                                                ${OpenCV_INCLUDE_DIRS} 
+target_include_directories(${PROJECT_NAME} PUBLIC 
+                                                include/ 
+)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE
+                                                ${Boost_INCLUDE_DIRS}
+                                                ${OpenCV_INCLUDE_DIRS}
 )
 
 
-target_link_libraries(${PROJECT_NAME} 
-                        PUBLIC 
+target_link_libraries(${PROJECT_NAME}
+                        PRIVATE 
                             absl::base
                             absl::strings
                             absl::str_format
                             absl::utility
                             absl::status
                             Boost::headers
-                            ${OpenCV_LIBS} 
+                            opencv::opencv
                             freenect
                             ftxui::screen ftxui::dom ftxui::component
                             TBB::tbb
-                        PRIVATE
+                            libusb::libusb
+                            LibUVC::UVCStatic
                             SI::SI
                             spdlog::spdlog
                             CLI11::CLI11
                             ${systemd_LIBRARIES}
-                            ${LIBUSB_LIBRARY}
-                            usb-1.0
                             
 )  
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20 PRIVATE ${TBB_CXX_STD_FLAG})
-target_compile_options(${PROJECT_NAME} PRIVATE -ffast-math -Weffc++)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20  ${TBB_CXX_STD_FLAG})
+target_compile_options(${PROJECT_NAME} PRIVATE -ffast-math)
 
 
 # set_target_properties(cerberus PROPERTIES PUBLIC_HEADER "include/cerberus.h")
@@ -124,14 +139,14 @@ target_compile_options(${PROJECT_NAME} PRIVATE -ffast-math -Weffc++)
 if(UNIX)
     if(CMAKE_BUILD_TYPE MATCHES "Debug")
         message(STATUS "BUILDING IN DEBUG")
-        target_compile_options(cerberus PUBLIC -O0 -g -Wall -Wextra -Walloca -fstack-protector-strong -fasynchronous-unwind-tables)
+        target_compile_options(cerberus PRIVATE -O0 -g -Wall -Wextra -Walloca -fstack-protector-strong -fasynchronous-unwind-tables)
     else()
         message(STATUS "BUILDING IN RELEASE")
         target_compile_options(cerberus PUBLIC -O2)
     endif()
 endif()
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libfreenect/cmake_modules/")
+# set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libfreenect/cmake_modules/")
 
 
 
