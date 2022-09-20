@@ -4,6 +4,7 @@
 #include <cerberus/utilities/si_units.h>
 #include <cerberus/utilities/units.h>
 
+#include <memory>
 #include <numbers>
 #include <optional>
 #include <string_view>
@@ -20,6 +21,8 @@
 
 #include <boost/signals2.hpp>
 #include <boost/signals2/connection.hpp>
+#include <boost/uuid/basic_name_generator.hpp>
+#include <boost/uuid/name_generator.hpp>
 #include <boost/uuid/random_generator.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -36,14 +39,10 @@ namespace cerberus::cameras {
     };
 
     struct Properties {
-        explicit Properties(FOVProperties fov)
-            : fov(std::move(fov)), uuid(boost::uuids::random_generator_mt19937()()), focal_length(std::nullopt) {}
-        explicit Properties(FOVProperties fov, units::si::Millimeters focal_len)
-            : fov(std::move(fov)), uuid(boost::uuids::random_generator_mt19937()()), focal_length(focal_len) {}
         const FOVProperties fov;
         const Resolution resolution;
-        const boost::uuids::uuid uuid;
-        const std::string_view model_name, serial_number;
+        const std::string model_name, serial_number, manufacturer;
+        const boost::uuids::uuid uuid{boost::uuids::name_generator_latest(boost::uuids::ns::oid())(model_name.data(), model_name.length())};
         const std::optional<units::si::Millimeters> focal_length;
     };
 
@@ -60,8 +59,15 @@ namespace cerberus::cameras {
             bool operator()(const std::shared_ptr<cerberus::cameras::Camera>& lhs, std::string_view rhs) {
                 return lhs->properties.model_name < rhs;
             }
+            bool operator()(const std::shared_ptr<cerberus::cameras::Camera>& lhs, std::shared_ptr<cerberus::cameras::Camera>& rhs) {
+                return lhs < rhs;
+            }
             bool operator()(std::string_view lhs, const std::shared_ptr<cerberus::cameras::Camera>& rhs) {
                 return lhs < rhs->properties.model_name;
+            }
+            template <class T>
+            bool operator()(const T& lhs, const T& rhs) {
+                return lhs < rhs;
             }
         };
 
@@ -73,11 +79,15 @@ namespace cerberus::cameras {
         // moveable
         Camera(Camera&& other) noexcept = default;
 
-        ~Camera() = default;
-        explicit Camera(Properties properties) : properties(std::move(properties)) {}
-        Camera(cerberus::units::si::Degrees maxfov, cerberus::units::si::Degrees minfov)
-            : properties(FOVProperties{.max = maxfov, .min = minfov, .step_size{}}) {
+        virtual ~Camera() = default;
+        explicit Camera(Properties properties) : properties(std::move(properties)) {
             _logger->flush_on(spdlog::level::level_enum::info);
+            _logger->trace("Created new Camera -> {}", properties.model_name);
+        }
+        Camera(cerberus::units::si::Degrees /*maxfov*/, cerberus::units::si::Degrees /*minfov*/)
+            : properties(Properties{.fov = FOVProperties{}, .resolution = {0, 0}, .model_name = ""}) {
+            _logger->flush_on(spdlog::level::level_enum::info);
+            _logger->trace("Created new Camera -> {}", properties.model_name);
         }
 
         virtual absl::Status stop_video() = 0;
@@ -96,13 +106,19 @@ namespace cerberus::cameras {
         auto operator==(const std::string_view& other) const { return properties.model_name == other; }
         auto operator<(const Camera& other) const { return properties.uuid < other.properties.uuid; }
         auto operator<(const std::string_view& other) const { return properties.model_name == other; }
+        template <typename T>
+        bool operator()(const T& lhs, const T& rhs) const {
+            return lhs < rhs;
+        };
+        bool operator()(const std::shared_ptr<Camera>& lhs, const std::shared_ptr<Camera>& rhs) const { return lhs < rhs; };
 
       protected:
-        // NOLINTBEGIN //TODO: remove when bug in clang-tidy is fixed
-        inline static std::shared_ptr<spdlog::logger> _logger = // NOLINT //TODO: remove once fixed in clang
-            spdlog::create_async<spdlog::sinks::basic_file_sink_mt>(std::string{log_name}, std::string{log_file});
+        // NOLINTBEGIN //LINTBUG: remove when bug in clang-tidy is fixed
+        inline static std::shared_ptr<spdlog::logger> _logger = // NOLINT //LINTBUG: remove once fixed in clang
+            spdlog::create_async<spdlog::sinks::basic_file_sink_mt>("Camera Logger", "logs/camera_logs.txt");
         boost::signals2::signal<void(cv::Mat)> _cv_mat_signal;
         // NOLINTEND
+
       private:
         static void _transfer_buf_cb(libusb_transfer* transfer);
     };

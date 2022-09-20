@@ -1,9 +1,11 @@
 #ifndef __CERBERUS_TERMINAL_TUI_H_
 #define __CERBERUS_TERMINAL_TUI_H_
 
+#include "cerberus/utilities/thread_pool.h"
 #include <cerberus/cameras/kinect/kinect.h>
 #include <cerberus/terminal/base_menu.h>
 #include <cerberus/terminal/kinect_tui.h>
+#include <cerberus/terminal/webcam_tui.h>
 
 #include <atomic>
 #include <chrono>
@@ -43,22 +45,21 @@ namespace cerberus::terminal {
 
     namespace tui::paths {
         static constexpr std::string_view kKinect_path{"Kinect"};
-        static constexpr std::string_view kUSBCam_path{"USB_CAM"};
+        static constexpr std::string_view kUSBWebCam_path{"WebCams"};
     } // namespace tui::paths
 
     class TUITerminal : public BaseMenu {
 
       public:
-        TUITerminal() = default;
-
+        explicit TUITerminal(cerberus::utilities::threads::ThreadPool& tp) : _tpool(tp) {}
         void start() override { _screen.Loop(_main_menu); }
 
       private: // vars
-        std::unique_ptr<cerberus::terminal::TUIKinectTerminal> _kinect_tui;
+        cerberus::utilities::threads::ThreadPool& _tpool;
+
+        std::shared_ptr<cerberus::terminal::BaseMenu> _tui;
         // tui
         ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::TerminalOutput();
-
-        ftxui::Component _renderer;
 
         boost::lockfree::spsc_queue<cv::Mat, boost::lockfree::capacity<256>> _rgb_stream{}, _depth_stream{};
 
@@ -70,9 +71,23 @@ namespace cerberus::terminal {
 
         void _submenu(const std::string_view& path) {
             auto screen = ftxui::ScreenInteractive::FitComponent();
+            if (_tui)
+                _tui.reset();
             if (path == tui::paths::kKinect_path) {
-                _kinect_tui = std::make_unique<cerberus::terminal::TUIKinectTerminal>();
-                _kinect_tui->start();
+                _tui = std::dynamic_pointer_cast<BaseMenu>(std::make_shared<cerberus::terminal::TUIKinectTerminal>());
+                _tui->start();
+            } else if (path == tui::paths::kUSBWebCam_path) {
+                try {
+                    _tui = std::dynamic_pointer_cast<BaseMenu>(std::make_shared<cerberus::terminal::TuiWebcamTerminal>(_tpool));
+                    // _tui = tui;
+                    if (_tui) {
+                        _tui->start();
+                    } else {
+                        _file_logger->error("Creating TUITerminal failed\n");
+                    }
+                } catch (...) {
+                    _file_logger->error("Unabled to start TUI Webcam Terminal\n");
+                }
             } else {
                 // TODO: log error
                 // _file_logger->lo throw std::runtime_error(absl::StrFormat("Failed to
@@ -81,12 +96,15 @@ namespace cerberus::terminal {
                 _file_logger->error(fmt::format("Invalid String path Given to TUI submenu:{}", path));
             }
 
-            screen.Loop(_renderer);
+            _tui.reset();
+
+            _screen.Loop(_main_menu);
         }
 
         ftxui::Component _main_menu = ftxui::Container::Vertical({
             ftxui::Button("Quit", _screen.ExitLoopClosure(), ftxui::ButtonOption::Animated(ftxui::Color::Red)),
             ftxui::Button("1. Kinect", [this] { _submenu(tui::paths::kKinect_path); }),
+            ftxui::Button("2. Webcams", [this] { _submenu(tui::paths::kUSBWebCam_path); }),
         });
     };
 

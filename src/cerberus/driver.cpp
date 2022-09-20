@@ -1,11 +1,11 @@
-//stl
+// stl
 
 #include <csignal>
 #include <iostream>
 #include <string>
 #include <vector>
 
-//cerberus
+// cerberus
 #include <cerberus/cerberus.h>
 
 #include <CLI/CLI.hpp>
@@ -20,9 +20,9 @@ void signalHandler([[maybe_unused]] int signal) {
 int main(int argc, const char* argv[]) {
     using TerminalMenuTypes = cerberus::terminal::TerminalMenu::types;
 
-    //TODO benchmark this initalizer with various parameters
-    //setup SPD Log
-    bool launch_tui{false}, launch_gui{false}, launch_cmdline{false}; //NOLINT
+    // TODO benchmark this initalizer with various parameters
+    // setup SPD Log
+    bool launch_tui{false}, launch_gui{false}, launch_cmdline{false}; // NOLINT
     std::string log_level{};
     CLI::App cmd_line{"Cerberus Daemon"};
     cmd_line.add_flag("--tui", launch_tui, "use the TUI Commandline Control Interface");
@@ -33,7 +33,7 @@ int main(int argc, const char* argv[]) {
     // cmd_line.add_flag("--headless, --nohead", "launch the daemon in headless server mode, use ./cerberus -h to learn more");
     CLI11_PARSE(cmd_line, argc, argv);
 
-    cerberus::ctor_args::SPDLOGArgs spd_args{.thread_queue_size = 8192, .thread_count = 1, .log_level = spdlog::level::from_str(log_level)};
+    cerberus::ctor_args::SPDLOGArgs spd_args{.thread_queue_size = 8192, .thread_count = 5, .log_level = spdlog::level::from_str(log_level)};
     spdlog::set_level(spd_args.log_level);
     cerberus::CerberusDaemon daemon(spd_args);
     absl::Status daemon_status;
@@ -43,12 +43,12 @@ int main(int argc, const char* argv[]) {
         daemon_status = daemon.start<TerminalMenuTypes::GUI>();
     } else if (launch_cmdline) {
         daemon_status = daemon.start<TerminalMenuTypes::CMDLINE>();
-    } else { //headless
+    } else { // headless
     }
     if (!daemon_status.ok()) {
         std::cerr << fmt::format("Failed to Start TUI Terminal. Returned with Value: {}", daemon_status.message());
     }
 
-    //cleanup logger globally
+    // cleanup logger globally
     return EXIT_SUCCESS;
 }

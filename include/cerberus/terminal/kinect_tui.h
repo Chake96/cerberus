@@ -29,13 +29,13 @@ namespace cerberus::terminal {
         static constexpr std::string_view kRGBStream_path{"RGB Stream"};
     } // namespace tui::paths::kinect
 
-    class TUIKinectTerminal : BaseMenu {
-      public: //vars
+    class TUIKinectTerminal : public BaseMenu {
+      public: // vars
         static constexpr float kcascade_image_scale{1.5F};
 
         void start() override { _screen.Loop(_main_menu); }
 
-      public: //methods
+      public: // methods
         TUIKinectTerminal() {
             try {
                 _kin = std::make_unique<std::remove_reference_t<decltype(*_kin)>>(
@@ -45,10 +45,11 @@ namespace cerberus::terminal {
                 );
             } catch (...) {
                 BaseMenu::_file_logger->error("Could not Construct a Valid Kinect Object");
+                BaseMenu::_file_logger->flush();
             }
         }
 
-      private: //vars
+      private: // vars
         std::unique_ptr<cameras::kinect::Kinect<cameras::kinect::CVNect>> _kin{nullptr};
         // tui
         ftxui::ScreenInteractive _screen = ftxui::ScreenInteractive::TerminalOutput();
@@ -134,62 +135,7 @@ namespace cerberus::terminal {
             ftxui::Button(
                 "Face Detection",
                 [this] {
-                    std::jthread([this] {
-                        using namespace std::chrono;          // NOLINT
-                        using namespace std::chrono_literals; // NOLINT
-                        using namespace cv;                   // NOLINT
 
-                        thread_local Mat rgb(Size(640, 480), CV_8UC3, Scalar(0));
-                        thread_local Mat cascade_grayscale;
-                        cv::CascadeClassifier face_cf{"/usr/share/opencv4/haarcascades/haarcascade_frontalface_alt2.xml"};
-                        std::vector<cv::Rect> faces;
-
-                        thread_local static auto run_stream = [&] {
-                            namedWindow("Face Tracking");
-                            int key_interrupt = pollKey();
-                            //NOLINTBEGIN
-                            const auto swidth = static_cast<int>(static_cast<float>(rgb.size().width) / kcascade_image_scale);
-                            const auto sheight = static_cast<int>(static_cast<float>(rgb.size().height) / kcascade_image_scale);
-                            //NOLINTEND
-                            // Detect faces
-                            while (key_interrupt < 0) {
-                                if (_rgb_stream.pop(rgb)) {
-                                    resize(rgb, cascade_grayscale, cv::Size(swidth, sheight));
-                                    cvtColor(cascade_grayscale, cascade_grayscale, cv::COLOR_BGR2GRAY);
-                                    face_cf.detectMultiScale(rgb, faces, 1.1, 3, 0, cv::Size(50, 50));
-                                    if (!faces.empty()) {
-                                        // Apply rectangles to BGR image
-                                        for (const auto& face : faces) {
-                                            cv::rectangle(
-                                                cascade_grayscale,
-                                                cv::Point(
-                                                    cvRound(static_cast<float>(face.x) * kcascade_image_scale),
-                                                    cvRound(static_cast<float>(face.y) * kcascade_image_scale)
-                                                ), // Upper left point
-                                                cv::Point(
-                                                    cvRound(
-                                                        (static_cast<float>(face.x) + static_cast<float>(face.width - 1)) *
-                                                        kcascade_image_scale
-                                                    ),
-                                                    cvRound(
-                                                        (static_cast<float>(face.y) + static_cast<float>(face.height - 1)) *
-                                                        kcascade_image_scale
-                                                    )
-                                                ),                    // Lower right point
-                                                cv::Scalar(0, 0, 255) // Red line
-                                            );
-                                        }
-                                        faces.clear();
-                                    }
-                                    cv::imshow("Face Detect", rgb);
-                                    key_interrupt = pollKey();
-                                }
-                            }
-                            destroyAllWindows();
-                        };
-
-                        run_stream();
-                    });
                 }
             ),
             ftxui::Button(
@@ -208,11 +154,11 @@ namespace cerberus::terminal {
                         thread_local static auto run_stream = [&] {
                             namedWindow("Cascade Grayscale Body Tracking");
                             int key_interrupt = pollKey();
-                            //NOLINTBEGIN
+                            // NOLINTBEGIN
                             const auto swidth = static_cast<int>(static_cast<float>(rgb.size().width) / kcascade_image_scale);
                             const auto sheight = static_cast<int>(static_cast<float>(rgb.size().height) / kcascade_image_scale);
-                            //NOLINTEND
-                            // Detect faces
+                            // NOLINTEND
+                            //  Detect faces
                             while (key_interrupt < 0) {
                                 if (_rgb_stream.pop(rgb)) {
                                     resize(rgb, cascade_grayscale, cv::Size(swidth, sheight));
@@ -376,8 +322,8 @@ namespace cerberus::terminal {
                                         2
                                     );
                                     cv::imshow("Pedestrian Tracking", rgb);
-                                    //UP: 1113938
-                                    //DOWN: 1113940
+                                    // UP: 1113938
+                                    // DOWN: 1113940
                                     key_interrupt = pollKey();
                                     if (key_interrupt == 1113938) {
                                         detection_threshold += .1;
