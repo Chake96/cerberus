@@ -1,6 +1,8 @@
 # Cerberus
 
-A Home Security System based on the Kinect Camera System
+A Home Security System
+
+Currently Supports: USB Webcams, Microsoft Kinect Sensor
 
 <!-- * **ES modules** and **tree-shaking** support.
 * Add Size Limit to **Travis CI**, **Circle CI**, **GitHub Actions**
